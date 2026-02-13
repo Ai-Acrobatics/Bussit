@@ -12,16 +12,17 @@
 - **Development** — `run_terminal`, `claude_code`, `list_cc_profiles`
 - **Creative** — `generate_image` (DALL-E 3)
 - **TOOLS.md** — Comprehensive tool awareness document injected into system prompt
-- **Fleet tool loader** — Dynamic loading of shared tools from `fleet_shared/tools/`
+- **Fleet tool loader** — Dynamic loading of shared tools from fleet_shared/tools/
 
 ### Changed
 - System prompt now includes TOOLS.md for full tool awareness on every turn
-- Memory context auto-injected into system prompt via `loadMemoryContext()`
+- Memory context auto-injected into system prompt via loadMemoryContext()
 - Agent cannot delete own memories or conversation history
 
 ### Database (Supabase)
-- `agent_memories` — Persistent memory with full-text search
-- `agent_conversations` — Conversation history
-- `agent_outputs` — Work product logging and tracking
-- `agent_incidents` / `agent_reviews` / `agent_training` — Quality system
-- `tool_gaps` — Self-improvement tracking
+- agent_memories — Persistent memory with full-text search
+- agent_conversations — Conversation history
+- agent_outputs — Work product logging and tracking
+- agent_incidents / agent_reviews / agent_training — Quality system
+- tool_gaps — Self-improvement tracking
+
