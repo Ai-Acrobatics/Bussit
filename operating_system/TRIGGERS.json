@@ -46,5 +46,16 @@
       { "type": "http", "url": "https://example.com/hook", "method": "POST", "vars": { "source": "webhook" } }
     ],
     "enabled": false
+  },
+  {
+    "name": "github-deployment-failure",
+    "watch_path": "/github/webhook",
+    "actions": [
+      {
+        "type": "command",
+        "command": "cd /job/.pi/skills/deployment-monitor && ./check.js --repo {{body.repository.full_name}} --track --notify-failures --auto-fix"
+      }
+    ],
+    "enabled": false
   }
 ]

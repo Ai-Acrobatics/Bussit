@@ -1,0 +1,59 @@
+{
+  "repositories": [
+    {
+      "owner": "yourorg",
+      "repo": "yourrepo",
+      "workflows": ["CI/CD", "Deploy"],
+      "auto_fix": true,
+      "notify": true,
+      "tracking": true
+    }
+  ],
+  "auto_fix": {
+    "enabled": true,
+    "max_attempts": 3,
+    "retry_delay": 300,
+    "approval_required": false,
+    "allowed_actions": [
+      "update_dependencies",
+      "fix_tests",
+      "fix_build",
+      "update_config"
+    ],
+    "allowed_workflows": []
+  },
+  "tracking": {
+    "type": "excel",
+    "file": "/job/logs/deployments/tracking.xlsx",
+    "fields": [
+      "timestamp",
+      "repository",
+      "workflow",
+      "status",
+      "duration",
+      "commit",
+      "branch",
+      "error",
+      "category",
+      "fix_applied",
+      "auto_fixed",
+      "run_id"
+    ]
+  },
+  "notifications": {
+    "telegram": {
+      "enabled": true,
+      "chat_ids": []
+    },
+    "email": {
+      "enabled": false,
+      "recipients": []
+    }
+  },
+  "safety": {
+    "max_fixes_per_hour": 5,
+    "require_approval_for": ["production", "main", "master"],
+    "never_auto_deploy": ["production"],
+    "always_create_pr": true
+  }
+}

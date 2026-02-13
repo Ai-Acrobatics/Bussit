@@ -50,5 +50,26 @@
     "type": "agent",
     "job": "Read the file at operating_system/FINANCIAL_ADVISOR/FINANCIAL_ADVISOR.md and complete the tasks described there.",
     "enabled": true
+  },
+  {
+    "name": "deployment-monitor-quick",
+    "schedule": "*/5 * * * *",
+    "type": "command",
+    "command": "cd /job/.pi/skills/deployment-monitor && ./check.js --repos yourorg/yourrepo --track --notify-failures --auto-fix",
+    "enabled": false
+  },
+  {
+    "name": "deployment-monitor-full",
+    "schedule": "*/15 * * * *",
+    "type": "agent",
+    "job": "Read the file at operating_system/DEPLOYMENT_MONITOR.md and complete the tasks described there.",
+    "enabled": false
+  },
+  {
+    "name": "deployment-report-daily",
+    "schedule": "0 9 * * *",
+    "type": "command",
+    "command": "cd /job/.pi/skills/deployment-monitor && ./report.js --days 1 --format markdown --notify",
+    "enabled": false
   }
 ]

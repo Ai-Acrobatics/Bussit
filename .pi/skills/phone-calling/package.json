@@ -1,0 +1,10 @@
+{
+  "name": "thepopebot-phone-calling",
+  "version": "1.0.0",
+  "description": "Phone calling skill for thepopebot using Twilio",
+  "type": "module",
+  "dependencies": {
+    "twilio": "^5.3.5",
+    "yargs": "^17.7.2"
+  }
+}
