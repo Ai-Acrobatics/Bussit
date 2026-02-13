@@ -44,7 +44,7 @@ const { API_KEY, TELEGRAM_WEBHOOK_SECRET, TELEGRAM_BOT_TOKEN, GH_WEBHOOK_SECRET,
 let telegramBotToken = TELEGRAM_BOT_TOKEN || null;
 
 // Routes that have their own authentication
-const PUBLIC_ROUTES = ['/telegram/webhook', '/github/webhook'];
+const PUBLIC_ROUTES = ['/telegram/webhook', '/github/webhook', '/ping'];
 
 // Global x-api-key auth (skip for routes with their own auth)
 app.use((req, res, next) => {

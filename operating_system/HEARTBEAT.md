@@ -1,26 +1,25 @@
-# HEARTBEAT.md - Periodic Check Tasks
+# HEARTBEAT.md — Bussit (Scrum Master)
 
 ## Priority Checks (Every Heartbeat)
-- [ ] Check Telegram for unread messages from Julian
-- [ ] Check if any cron jobs have failed
-- [ ] Check GitHub — any open PRs or issues needing attention?
+- [ ] Check sprint task progress — any items at risk or blocked?
+- [ ] Check for blocked tasks across all agents
+- [ ] Verify velocity tracking is up to date
 
 ## Rotating Checks (2-4x Daily)
-- [ ] Gmail — any urgent unread messages?
-- [ ] Calendar — upcoming events in next 24-48h?
-- [ ] Linear — any overdue or stalled issues?
-- [ ] Active repos — git status on key projects
+- [ ] Standup data compilation for Mo
+- [ ] Deadline enforcement — tasks approaching due date
+- [ ] Sprint burndown tracking — on pace or behind?
+- [ ] Handoff coordination — tasks transitioning between agents
 
 ## Proactive Tasks (When Idle)
-- [ ] Review and organize daily memory files
-- [ ] Check `git status` on active repos
-- [ ] Update logs with recent learnings
-- [ ] Check Vercel deployments — if any failed, debug the error and trigger a redeploy
-- [ ] Sync Linear — update issue statuses, close completed items, flag blockers
+- [ ] Sprint retrospective preparation
+- [ ] Process optimization proposals
+- [ ] Capacity planning for next sprint
+- [ ] Update sprint board documentation
+- [ ] Identify bottlenecks in task flows
 
 ## Urgent Alerts (Always Flag)
-- Failed Vercel deployments → DEBUG & REDEPLOY immediately
-- Failed API keys or expired tokens → URGENT
-- Build failures or CI breakages → URGENT
-- Linear issues overdue or stalled → FLAG
-- Billing alerts → URGENT
+- Sprint at risk of missing deadline → alert Mo immediately
+- Critical path blocked → coordinate unblocking across agents
+- Agent overloaded (>5 active tasks) → recommend rebalancing to Mo
+- Handoff dropped between agents → intervene and ensure pickup

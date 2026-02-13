@@ -19,6 +19,7 @@ const { sendFleetMessage } = require(path.join(FLEET_SHARED, 'tools', 'fleet-com
 const { createSession, navigateAndExtract, performAction, closeSession } = require(path.join(FLEET_SHARED, 'tools', 'browserbase'));
 const { getSecret, listItems, getAccessLog } = require(path.join(FLEET_SHARED, 'tools', 'onepassword'));
 const { listMCPServers, callMCPTool } = require(path.join(FLEET_SHARED, 'tools', 'mcporter'));
+const supabaseTasks = require(path.join(FLEET_SHARED, 'tools', 'supabase-tasks'));
 
 // Each agent's own crons file
 function getCronsPath() {
@@ -559,4 +560,43 @@ const toolExecutors = {
   },
 };
 
-module.exports = { toolDefinitions, toolExecutors };
+// --- Supabase Task Tracking ---
+// Merge Supabase tools into the tool arrays
+for (const def of supabaseTasks.TOOL_DEFINITIONS) {
+  // Avoid duplicates: rename if conflicts with existing task board tools
+  const name = def.name === 'create_task' ? 'sb_create_task' :
+               def.name === 'update_task' ? 'sb_update_task' :
+               def.name;
+  toolDefinitions.push({ ...def, name });
+  if (supabaseTasks.HANDLERS[def.name]) {
+    toolExecutors[name] = supabaseTasks.HANDLERS[def.name];
+  }
+}
+
+
+// --- Memory System (remember/recall — persistent agent knowledge) ---
+let loadMemoryContext = async () => '';
+try {
+  const memoryTools = require(require('path').join(__dirname, '..', '..', '..', 'fleet_shared', 'tools', 'memory-system'));
+  for (const def of memoryTools.TOOL_DEFINITIONS) {
+    toolDefinitions.push(def);
+    if (memoryTools.HANDLERS[def.name]) toolExecutors[def.name] = memoryTools.HANDLERS[def.name];
+  }
+  loadMemoryContext = memoryTools.loadMemoryContext;
+} catch (e) { console.warn('[TOOLS] memory-system not available:', e.message); }
+
+// --- Dynamic tool loader for fleet_shared tools ---
+const FLEET_TOOLS = ['run-terminal','generate-image','self-improve','send-email','calendar','linear','notion','claude-code','voice-call','send-sms','output-log'];
+for (const toolName of FLEET_TOOLS) {
+  try {
+    const mod = require(require('path').join(__dirname, '..', '..', '..', 'fleet_shared', 'tools', toolName));
+    if (mod.TOOL_DEFINITIONS) {
+      for (const def of mod.TOOL_DEFINITIONS) {
+        toolDefinitions.push(def);
+        if (mod.HANDLERS && mod.HANDLERS[def.name]) toolExecutors[def.name] = mod.HANDLERS[def.name];
+      }
+    }
+  } catch (e) { console.warn('[TOOLS] ' + toolName + ' not available:', e.message); }
+}
+
+module.exports = { toolDefinitions, toolExecutors, loadMemoryContext };

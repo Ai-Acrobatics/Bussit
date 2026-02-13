@@ -27,13 +27,14 @@ function getApiKey() {
  * @param {Array} tools - Tool definitions
  * @returns {Promise<Object>} API response
  */
-async function callClaude(messages, tools) {
+async function callClaude(messages, tools, memoryContext = "") {
   const apiKey = getApiKey();
   const model = process.env.EVENT_HANDLER_MODEL || DEFAULT_MODEL;
   const systemPrompt = render_md(path.join(__dirname, '..', '..', 'operating_system', 'CHATBOT.md'));
 
   // Combine user tools with web search
-  const allTools = [WEB_SEARCH_TOOL, ...tools];
+  // Deduplicate: if tools already has web_search (Perplexity), skip built-in
+  const allTools = tools.some(t => t.name === 'web_search') ? tools : [WEB_SEARCH_TOOL, ...tools];
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

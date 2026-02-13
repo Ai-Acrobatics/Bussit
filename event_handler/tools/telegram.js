@@ -90,17 +90,56 @@ function escapeHtml(text) {
 }
 
 /**
+ * Convert Claude's Markdown formatting to Telegram-compatible HTML
+ * Handles: **bold**, *italic*, `code`, ```code blocks```, [links](url)
+ * @param {string} text - Markdown text from Claude
+ * @returns {string} HTML text for Telegram
+ */
+function markdownToTelegramHtml(text) {
+  if (!text) return '';
+
+  // Pre-process: protect code blocks from other transformations
+  const codeBlocks = [];
+  text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    codeBlocks.push(`<pre>${escapeHtml(code.trim())}</pre>`);
+    return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
+  });
+
+  // Protect inline code
+  const inlineCode = [];
+  text = text.replace(/`([^`]+)`/g, (_, code) => {
+    inlineCode.push(`<code>${escapeHtml(code)}</code>`);
+    return `__INLINE_CODE_${inlineCode.length - 1}__`;
+  });
+
+  // Convert markdown to HTML (order matters: bold before italic)
+  text = text.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  text = text.replace(/\*(.+?)\*/g, '<i>$1</i>');
+  text = text.replace(/__(.+?)__/g, '<u>$1</u>');
+  text = text.replace(/~~(.+?)~~/g, '<s>$1</s>');
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+
+  // Restore code blocks and inline code
+  text = text.replace(/__INLINE_CODE_(\d+)__/g, (_, i) => inlineCode[i]);
+  text = text.replace(/__CODE_BLOCK_(\d+)__/g, (_, i) => codeBlocks[i]);
+
+  return text;
+}
+
+/**
  * Send a message to a Telegram chat with HTML formatting
- * Automatically splits long messages
+ * Automatically splits long messages. Accepts both HTML and Markdown input.
  * @param {string} botToken - Bot token from @BotFather
  * @param {number|string} chatId - Chat ID to send message to
- * @param {string} text - Message text (HTML formatted)
+ * @param {string} text - Message text (Markdown or HTML)
  * @param {Object} [options] - Additional options
  * @param {boolean} [options.disablePreview] - Disable link previews
  * @returns {Promise<Object>} - Last message sent
  */
 async function sendMessage(botToken, chatId, text, options = {}) {
   const b = getBot(botToken);
+  // Convert Markdown to Telegram HTML (handles Claude's output format)
+  text = markdownToTelegramHtml(text);
   // Strip HTML comments — Telegram's HTML parser doesn't support them
   text = text.replace(/<!--[\s\S]*?-->/g, '');
   const chunks = smartSplit(text, MAX_LENGTH);
@@ -195,12 +234,12 @@ function startTypingIndicator(botToken, chatId) {
     const delay = 5500 + Math.random() * 2500;
     timeout = setTimeout(() => {
       if (stopped) return;
-      b.api.sendChatAction(chatId, 'typing').catch(() => {});
+      b.api.sendChatAction(chatId, 'typing').catch(() => { });
       scheduleNext();
     }, delay);
   }
 
-  b.api.sendChatAction(chatId, 'typing').catch(() => {});
+  b.api.sendChatAction(chatId, 'typing').catch(() => { });
   scheduleNext();
 
   return () => {
