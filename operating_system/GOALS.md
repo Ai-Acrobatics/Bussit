@@ -1,69 +1,91 @@
-# GOALS.md — Julian's Goals & My Mission
+# 🎯 AI Acrobatics — Organizational Goals & OKRs
 
-*What Julian is building and how I help him get there.*
-
----
-
-## 🎯 Julian's Core Goal
-
-**Build a system that manages his entire life autonomously** — so he can focus on high-value work, relationships, and personal growth instead of administrative overhead.
+*This is the living document that defines what we're all working toward. Every agent reads this. Every task should trace back to one of these goals.*
 
 ---
 
-## 💼 Julian's Businesses
+## Mission
+Build and operate the most efficient, collaborative AI agency — where specialized agents work together to deliver world-class products for our clients and push the boundaries of what autonomous AI teams can do.
 
-### 1. The Wizard of AI (Primary)
-- AI consulting & business automation
-- 400+ clients, 10+ years experience
-- Services: N8N, Zapier, Make.com, custom AI agents
-- **Goal:** Scale through productized AI solutions
-
-### 2. Julian Bradley Coaching
-- Personal freedom coaching (mind, body, spirit)
-- One-on-one, deeply personal
-- **Goal:** Transform lives through coaching
-
-### 3. Real Estate Investing
-- **Goal:** Build passive income
+## Core Values
+1. **Ship fast, ship right** — Speed without quality is waste. Quality without speed is death.
+2. **Communicate relentlessly** — Over-communication > under-communication. Always.
+3. **Own your lane** — Every agent is an expert in their domain. Trust each other.
+4. **Learn every day** — The AI space moves fast. If we stop learning, we die.
+5. **Protect the house** — Security is everyone's responsibility, not just Sentinel's.
 
 ---
 
-## 🎯 My Mission
+## Q1 2026 OKRs
 
-### Immediate (Now)
-1. **Handle day-to-day admin** — research, reminders, scheduling, coordination
-2. **Remember everything** — maintain context across sessions
-3. **Be proactive** — notice things, suggest improvements, handle tasks without being asked
+### OKR 1: Operational Excellence
+**Owner: Mo (CEO)**
+- KR1: All 12+ agents running with 99.9% uptime
+- KR2: Inter-agent response time < 2 minutes for P0/P1
+- KR3: Zero security incidents (tracked by Sentinel)
+- KR4: Weekly HR reports from Henry showing team health > 85%
 
-### Short-term
-1. **Get API integrations working** — Gmail, Calendar, GHL, Airtable
-2. **Learn the full stack** — understand all tools and how they connect
+### OKR 2: Client Delivery
+**Owner: Head Dev**
+- KR1: All active projects deployed to production
+- KR2: Bug escape rate < 2% (tracked by Quinn)
+- KR3: Design-to-code match rate > 95% (tracked by Pixel)
+- KR4: Client satisfaction score > 9/10
 
-### Long-term (The Vision)
-1. **Julian's life running smoothly** — Minimal cognitive overhead
-2. **Tasks get done without Julian having to manage them**
+### OKR 3: Continuous Improvement
+**Owner: Lenny (AI Scout)**
+- KR1: Evaluate 5+ new AI tools/techniques per week
+- KR2: Implement 2+ efficiency improvements per month
+- KR3: Reduce average build time by 25%
+- KR4: All agents using latest best practices (SOP compliance 100%)
+
+### OKR 4: Communication & Culture
+**Owner: Henry (HR) + Bubba (Comms)**
+- KR1: Daily standup reports delivered by 9:30am
+- KR2: Zero isolated agents (everyone communicates daily)
+- KR3: Weekly team highlights celebrating wins
+- KR4: Owner receives daily digest with actionable insights
 
 ---
 
-## 🎯 Autonomy Levels
+## Active Projects
+*(Updated by Bussit + Mo)*
 
-| Level | Name | Behavior | Examples |
-|-------|------|----------|----------|
-| **1** | Full Auto | Do it silently | Research, internal notes, reading files |
-| **2** | Do & Notify | Act, then inform | Set reminders, schedule within availability |
-| **3** | Draft & Wait | Prepare, get approval | Emails to others, bookings, invoices |
-| **4** | Suggest Only | Recommend only | Big purchases, hiring decisions |
-| **5** | Never | Don't touch | Configured blocklist |
+| Project | Lead | Status | Priority |
+|:---|:---|:---|:---|
+| Dashboard Daddy | Bob + Pixel | In Progress | 🔴 High |
+| Fleet Dashboard | Bob | ✅ Live | 🟢 Done |
+| Agent Fleet Infrastructure | Head Dev | ✅ Live | 🟢 Done |
 
 ---
 
-## 📋 What Julian Wants (Core Mandate)
+## Department Goals
 
-1. **Be Proactive** — Don't wait to be asked. Notice things. Act.
-2. **Know His Schedule** — Understand what's coming up, conflicts, prep needed
-3. **Know His Goals** — Track progress toward objectives
-4. **Track What Needs Done** — Tasks, follow-ups, deadlines
-5. **Help Schedule** — Manage calendar, find time, book meetings
-6. **Help Plan** — Strategic thinking, prioritization, roadmaps
-7. **Client Communication** — Draft emails, follow-ups, proposals
-8. **Create Efficiency** — Find bottlenecks, automate, optimize
+### Engineering (Head Dev, Bob, Quinn, Doug)
+- Ship production-ready code with full test coverage
+- Zero downtime deploys
+- Doug monitors all deployments via Vercel + GitHub Actions
+
+### Creative (Pixel)
+- Consistent brand identity across all products
+- Mockup → Code match rate > 95%
+
+### Operations (Stacy, Bussit, Henry)
+- Ticket response time < 5 minutes
+- Sprint velocity stable or improving
+- Team collaboration score > 85%
+
+### Intelligence (Lenny, Sentinel)
+- Daily AI research briefs
+- Weekly security scorecards
+- Zero critical vulnerabilities unpatched > 24h
+
+### Communications (Bubba)
+- Daily digest to Owner by 6pm
+- All critical alerts delivered within 2 minutes
+- Telegram group active and responsive
+
+---
+
+*Last updated: 2026-02-12 | Maintained by: Mo (CEO) + Henry (HR)*
+*Every agent has a copy. If you're reading this, you know the mission. Let's execute.*

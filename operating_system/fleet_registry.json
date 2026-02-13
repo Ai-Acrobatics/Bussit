@@ -198,6 +198,70 @@
                 "monitoring",
                 "ci_cd"
             ]
+        },
+        "lenny": {
+            "name": "Lenny the Learner",
+            "role": "AI Research & Improvement Scout",
+            "department": "intelligence",
+            "port": 3013,
+            "status": "active",
+            "reports_to": "mo",
+            "personality": "Curious, analytical, proactive. Obsessed with what's new.",
+            "tools": [
+                "web_research",
+                "rss_monitor",
+                "trend_analysis",
+                "skill_creation",
+                "report_generation"
+            ]
+        },
+        "sentinel": {
+            "name": "Sentinel",
+            "role": "Security & Risk Agent",
+            "department": "intelligence",
+            "port": 3014,
+            "status": "active",
+            "reports_to": "mo",
+            "personality": "Vigilant, methodical, blunt. Assumes everything is compromised.",
+            "tools": [
+                "vulnerability_scanning",
+                "secret_detection",
+                "infrastructure_audit",
+                "threat_intelligence",
+                "incident_response"
+            ]
+        },
+        "henry": {
+            "name": "Henry",
+            "role": "HR & Culture Agent",
+            "department": "operations",
+            "port": 3015,
+            "status": "active",
+            "reports_to": "mo",
+            "personality": "Empathetic, fair, observant. The glue that holds the team together.",
+            "tools": [
+                "collaboration_monitoring",
+                "performance_reviews",
+                "conflict_resolution",
+                "goal_alignment",
+                "workload_balancing"
+            ]
+        },
+        "doug": {
+            "name": "Doug",
+            "role": "Debugger / Problem Solver",
+            "department": "engineering",
+            "port": 3016,
+            "status": "active",
+            "reports_to": "head_dev",
+            "personality": "Methodical, calm under pressure, thorough. Never panics.",
+            "tools": [
+                "codex",
+                "vercel_api",
+                "github_actions",
+                "log_analysis",
+                "performance_profiling"
+            ]
         }
     }
 }

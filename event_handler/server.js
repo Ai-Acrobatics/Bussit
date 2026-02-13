@@ -11,7 +11,24 @@ const { setWebhook, sendMessage, formatJobNotification, downloadFile, reactToMes
 const { isWhisperEnabled, transcribeAudio } = require('./tools/openai');
 const { chat } = require('./claude');
 const { toolDefinitions, toolExecutors } = require('./claude/tools');
+const { getToolsForAgent } = require('/home/dev/.gemini/antigravity/scratch/fleet_shared/tools/tool-registry');
 const { getHistory, updateHistory } = require('./claude/conversation');
+
+// ─── Load agent config and build filtered tool set ───
+let agentToolDefs = toolDefinitions;
+let agentToolExecs = toolExecutors;
+try {
+  const configPath = path.join(__dirname, '..', 'config.agentic.json');
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  const capabilities = config.capabilities || [];
+  const agentName = config.identity?.name || 'unknown';
+  const { definitions, executors } = getToolsForAgent(capabilities, toolDefinitions, toolExecutors);
+  agentToolDefs = definitions;
+  agentToolExecs = executors;
+  console.log(`🔧 ${agentName}: loaded ${definitions.length} tools (filtered from ${toolDefinitions.length} by ${capabilities.length} capabilities)`);
+} catch (err) {
+  console.warn('⚠️  Could not load agent config for tool filtering, using all tools:', err.message);
+}
 const { githubApi, getJobStatus } = require('./tools/github');
 const { getApiKey } = require('./claude');
 const { render_md } = require('./utils/render-md');
@@ -118,18 +135,74 @@ app.post('/telegram/webhook', async (req, res) => {
       return res.status(200).json({ ok: true });
     }
 
-    // Security: if no TELEGRAM_CHAT_ID configured, ignore all messages (except verification above)
-    if (!TELEGRAM_CHAT_ID) {
-      return res.status(200).json({ ok: true });
-    }
+    // --- Group Chat Support ---
+    const chatType = message.chat.type; // 'private', 'group', or 'supergroup'
+    const isGroup = chatType === 'group' || chatType === 'supergroup';
+    const allowedGroupIds = (process.env.TELEGRAM_GROUP_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
+    const botUsername = process.env.BOT_USERNAME || '';
+    const botDepartment = process.env.BOT_DEPARTMENT || '';
 
-    // Security: only accept messages from configured chat
-    if (chatId !== TELEGRAM_CHAT_ID) {
-      return res.status(200).json({ ok: true });
+    if (isGroup) {
+      // In groups: only respond if this group is allowed
+      if (allowedGroupIds.length > 0 && !allowedGroupIds.includes(chatId)) {
+        return res.status(200).json({ ok: true });
+      }
+
+      // Skip service messages with no text (member joins, invites, etc.)
+      if (!message.text && !message.voice) {
+        return res.status(200).json({ ok: true });
+      }
+
+      const isFromBot = message.from && message.from.is_bot;
+      const text = (message.text || '').toLowerCase();
+
+      if (isFromBot) {
+        // Message from another bot — only respond if specifically tagged
+        const isMentioned = botUsername && text.includes(`@${botUsername.toLowerCase()}`);
+        const isAll = text.includes('@all') || text.includes('@everyone');
+        const isDepartment = botDepartment && text.includes(`@${botDepartment.toLowerCase()}`);
+
+        if (!isMentioned && !isAll && !isDepartment) {
+          return res.status(200).json({ ok: true });
+        }
+      } else {
+        // Message from a human (owner) — Mo dispatches, others only if tagged
+        const isMentioned = botUsername && text.includes(`@${botUsername.toLowerCase()}`);
+        const isAll = text.includes('@all') || text.includes('@everyone');
+        const isDepartment = botDepartment && text.includes(`@${botDepartment.toLowerCase()}`);
+        const isMo = botUsername && botUsername.toLowerCase().includes('mo');
+
+        // Mo always responds to owner messages (as dispatcher)
+        // Other bots only respond if specifically tagged
+        if (!isMo && !isMentioned && !isAll && !isDepartment) {
+          return res.status(200).json({ ok: true });
+        }
+      }
+
+      // Strip @mention from the message before processing
+      if (botUsername && messageText) {
+        messageText = messageText.replace(new RegExp(`@${botUsername}`, 'gi'), '').trim();
+      }
+
+      // Add group context to the message so the bot knows it's in a group
+      if (messageText) {
+        const senderName = message.from ? (message.from.first_name || message.from.username || 'Someone') : 'Someone';
+        const senderLabel = isFromBot ? `[Bot: ${message.from.username}]` : `[Owner: ${senderName}]`;
+        messageText = `${senderLabel} in group "${message.chat.title || 'Fleet'}": ${messageText}`;
+      }
+
+    } else {
+      // DM: use existing TELEGRAM_CHAT_ID check
+      if (!TELEGRAM_CHAT_ID) {
+        return res.status(200).json({ ok: true });
+      }
+      if (chatId !== TELEGRAM_CHAT_ID) {
+        return res.status(200).json({ ok: true });
+      }
     }
 
     // Acknowledge receipt with a thumbs up (await so it completes before typing indicator starts)
-    await reactToMessage(telegramBotToken, chatId, message.message_id).catch(() => {});
+    await reactToMessage(telegramBotToken, chatId, message.message_id).catch(() => { });
 
     if (message.voice) {
       // Handle voice messages
@@ -159,8 +232,8 @@ app.post('/telegram/webhook', async (req, res) => {
         const { response, history: newHistory } = await chat(
           messageText,
           history,
-          toolDefinitions,
-          toolExecutors
+          agentToolDefs,
+          agentToolExecs
         );
         updateHistory(chatId, newHistory);
 
@@ -168,7 +241,7 @@ app.post('/telegram/webhook', async (req, res) => {
         await sendMessage(telegramBotToken, chatId, response);
       } catch (err) {
         console.error('Failed to process message with Claude:', err);
-        await sendMessage(telegramBotToken, chatId, 'Sorry, I encountered an error processing your message.').catch(() => {});
+        await sendMessage(telegramBotToken, chatId, 'Sorry, I encountered an error processing your message.').catch(() => { });
       } finally {
         stopTyping();
       }

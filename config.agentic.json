@@ -23,19 +23,29 @@
     ],
     "gruntTasks": [
         {
-            "name": "Velocity Check",
-            "schedule": "0 11 * * *",
-            "action": "Calculate sprint velocity. Compare to estimates. Flag blockers to Mo."
+            "name": "Daily Standup Data",
+            "schedule": "0 8 * * 1-5",
+            "action": "Pull task progress from board. Calculate velocity. Flag any tasks stuck >24h. Send standup data to Mo."
         },
         {
-            "name": "Deadline Enforcer",
-            "schedule": "0 9 * * *",
-            "action": "Check all tickets with due dates in next 48h. Ping assigned agent if not in-progress."
+            "name": "Sprint Velocity Check",
+            "schedule": "0 15 * * 3",
+            "action": "Mid-week velocity check. Are we on track? If behind, identify what's blocking and notify Mo."
         },
         {
-            "name": "Handoff Audit",
-            "schedule": "0 16 * * *",
-            "action": "Verify all completed tasks have been handed off to the next stage (Build→Test→Deploy)."
+            "name": "Weekly Velocity Report",
+            "schedule": "0 11 * * 5",
+            "action": "Compile weekly velocity: tasks planned vs completed, cycle time, bottlenecks. Send to Mo."
+        },
+        {
+            "name": "To-Do List Tracking",
+            "schedule": "0 12 * * 1-5",
+            "action": "EOS To-Do: check 7-day to-do items from last L10. Any overdue? Nudge owners. Report completion rate to Mo."
+        },
+        {
+            "name": "Issues List Maintenance",
+            "schedule": "0 9 * * 2",
+            "action": "EOS Issues: review open issues list. Resolved? New ones? Prioritize for next L10 IDS session."
         }
     ],
     "contextManagement": {
