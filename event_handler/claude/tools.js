@@ -18,6 +18,7 @@ const { logIncident, submitReview, getAgentScorecard, logTraining } = require(pa
 const { sendFleetMessage } = require(path.join(FLEET_SHARED, 'tools', 'fleet-comms'));
 const { createSession, navigateAndExtract, performAction, closeSession } = require(path.join(FLEET_SHARED, 'tools', 'browserbase'));
 const { getSecret, listItems, getAccessLog } = require(path.join(FLEET_SHARED, 'tools', 'onepassword'));
+const { listMCPServers, callMCPTool } = require(path.join(FLEET_SHARED, 'tools', 'mcporter'));
 
 // Each agent's own crons file
 function getCronsPath() {
@@ -50,6 +51,30 @@ function writeCrons(data) {
 // ========== TOOL DEFINITIONS (22 tools) ==========
 
 const toolDefinitions = [
+  // --- MCP Tools ---
+  {
+    name: 'mcp_list',
+    description: 'List available MCP servers and their tools. Use this to discover capabilities from connected MCP servers (e.g. "linear", "filesystem"). returns JSON.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        server: { type: 'string', description: 'Optional: name of specific server to list tools for.' }
+      }
+    }
+  },
+  {
+    name: 'mcp_call',
+    description: 'Call a tool on a specific MCP server.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        server: { type: 'string', description: 'Name of the MCP server (e.g. "linear", "filesystem")' },
+        tool: { type: 'string', description: 'Name of the tool to call' },
+        args: { type: 'object', description: 'Arguments for the tool' }
+      },
+      required: ['server', 'tool']
+    }
+  },
   // ─── Coding / Jobs ───
   {
     name: 'create_job',
@@ -352,6 +377,21 @@ const toolDefinitions = [
 // ========== TOOL EXECUTORS ==========
 
 const toolExecutors = {
+  // --- MCP Tools ---
+  mcp_list: async ({ server }) => {
+    try {
+      return listMCPServers(server);
+    } catch (err) {
+      return \`Error listing MCP servers: \${err.message}\`;
+    }
+  },
+  mcp_call: async ({ server, tool, args }) => {
+    try {
+      return callMCPTool(server, tool, args || {});
+    } catch (err) {
+      return \`Error calling MCP tool \${server}.\${tool}: \${err.message}\`;
+    }
+  },
   create_job: async (input) => {
     const result = await createJob(input.job_description);
     return { success: true, job_id: result.job_id, branch: result.branch };
@@ -486,7 +526,7 @@ const toolExecutors = {
   update_task: async (input) => {
     const data = readTasks();
     const task = data.tasks.find(t => t.id === input.task_id);
-    if (!task) return { success: false, error: `Task ${input.task_id} not found` };
+    if (!task) return { success: false, error: `Task ${ input.task_id } not found` };
     const botName = process.env.BOT_USERNAME || 'unknown';
     if (input.status) task.status = input.status;
     if (input.assigned_to) task.assigned_to = input.assigned_to;
