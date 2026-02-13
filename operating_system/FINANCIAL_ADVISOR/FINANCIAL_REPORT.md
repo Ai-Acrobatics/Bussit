@@ -1,6 +1,101 @@
-# Daily Financial Report
+# Daily Financial Report — February 13, 2026
 
-> No report has been generated yet. The first report will be created at the next scheduled run (6:00 AM Pacific, weekdays).
+> Generated at 22:00:45 UTC | Pre-market briefing
+
+---
+
+## ⚠️ Data Collection Issue
+
+**Unable to gather market data:** The Brave Search API key is not configured in LLM_SECRETS. To enable automated market research, please add `BRAVE_API_KEY` to the repository's LLM_SECRETS configuration.
+
+Get your free API key at: https://api-dashboard.search.brave.com/register
+
+---
+
+## 📊 Major Indices
+
+| Index | Last Close | Change | % Change |
+|-------|-----------|--------|----------|
+| S&P 500 | Data unavailable | — | — |
+| Dow Jones | Data unavailable | — | — |
+| Nasdaq Composite | Data unavailable | — | — |
+| Russell 2000 | Data unavailable | — | — |
+
+**Pre-market Futures:**
+- Data unavailable (BRAVE_API_KEY not configured)
+
+---
+
+## 🌍 Global Markets
+
+### Asia-Pacific
+- Data unavailable (BRAVE_API_KEY not configured)
+
+### Europe
+- Data unavailable (BRAVE_API_KEY not configured)
+
+---
+
+## 📈 Bonds & Rates
+
+- **10-Year Treasury Yield:** Data unavailable
+- **2-Year Treasury Yield:** Data unavailable
+- **2s/10s Spread:** Data unavailable
+- **Fed Funds Rate:** Data unavailable
+
+---
+
+## 🛢️ Commodities
+
+| Commodity | Price | Change |
+|-----------|-------|--------|
+| WTI Crude Oil | Data unavailable | — |
+| Gold | Data unavailable | — |
+| Silver | Data unavailable | — |
+| Natural Gas | Data unavailable | — |
+
+---
+
+## 💱 Currencies
+
+- **DXY (Dollar Index):** Data unavailable
+- **EUR/USD:** Data unavailable
+- **USD/JPY:** Data unavailable
+- **GBP/USD:** Data unavailable
+
+---
+
+## 📰 Key Headlines
+
+Data unavailable — requires BRAVE_API_KEY for web search functionality.
+
+---
+
+## 🏭 Sector Watch
+
+- **Top Performing:** Data unavailable
+- **Worst Performing:** Data unavailable
+- **Notable Movers:** Data unavailable
+
+---
+
+## 📅 Economic Calendar (Today)
+
+| Time (ET) | Event | Consensus | Prior |
+|-----------|-------|-----------|-------|
+| — | Data unavailable | — | — |
+
+---
+
+## 🔍 Analysis & Outlook
+
+Unable to generate market analysis due to missing BRAVE_API_KEY credential. This automated agent requires access to the Brave Search API to gather current market data from financial news sources, market data providers, and economic indicators.
+
+**To enable this functionality:**
+1. Create a free Brave Search API account at https://api-dashboard.search.brave.com/register
+2. Generate an API key under the "Free AI" subscription
+3. Add `BRAVE_API_KEY` to the repository's LLM_SECRETS configuration
+4. The next scheduled run will automatically gather and analyze market data
 
 ---
 
