@@ -1,0 +1,22 @@
+{
+  "name": "ai-phone-call",
+  "version": "1.0.0",
+  "description": "Autonomous AI phone calling skill for thepopebot",
+  "type": "module",
+  "main": "call.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "twilio": "^5.3.5",
+    "openai": "^4.77.0",
+    "ws": "^8.18.0",
+    "node-fetch": "^3.3.2",
+    "winston": "^3.17.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "thepopebot",
+  "license": "MIT"
+}
