@@ -1,0 +1,203 @@
+{
+    "fleet_name": "AI Acrobatics Agency",
+    "gateway_port": 8080,
+    "ngrok_domain": "peakily-nostologic-johanna.ngrok-free.dev",
+    "agents": {
+        "mo": {
+            "name": "Mo",
+            "role": "CEO / World-Class Manager",
+            "department": "executive",
+            "port": 3003,
+            "status": "planned",
+            "phase": 2,
+            "reports_to": "owner",
+            "manages": [
+                "head_dev",
+                "stacy",
+                "bussit",
+                "bubba",
+                "chase",
+                "ledger"
+            ],
+            "personality": "Visionary, decisive, empathetic. Runs the company like a Fortune 500 CEO."
+        },
+        "head_dev": {
+            "name": "The Architect",
+            "role": "VP / Technical Lead",
+            "department": "executive",
+            "port": 3004,
+            "status": "active",
+            "telegram_token_ref": "8059203719",
+            "reports_to": "mo",
+            "manages": [
+                "bob",
+                "quinn",
+                "pixel",
+                "reel",
+                "ink",
+                "ledger",
+                "docker_dan"
+            ]
+        },
+        "bob": {
+            "name": "Bob",
+            "role": "Builder",
+            "department": "engineering",
+            "port": 3000,
+            "status": "active",
+            "telegram_token_ref": "8313028178",
+            "reports_to": "head_dev",
+            "tools": [
+                "github",
+                "docker",
+                "nodejs",
+                "python"
+            ]
+        },
+        "stacy": {
+            "name": "Stacy",
+            "role": "Customer Support",
+            "department": "operations",
+            "port": 3001,
+            "status": "active",
+            "telegram_token_ref": "7997035810",
+            "reports_to": "head_dev",
+            "tools": [
+                "linear",
+                "knowledge_base",
+                "email"
+            ]
+        },
+        "bussit": {
+            "name": "Bussit",
+            "role": "Logistics / PM",
+            "department": "operations",
+            "port": 3002,
+            "status": "active",
+            "reports_to": "head_dev",
+            "tools": [
+                "linear",
+                "calendar",
+                "velocity_tracker"
+            ]
+        },
+        "bubba": {
+            "name": "Bubba",
+            "role": "Communications",
+            "department": "operations",
+            "port": 3005,
+            "status": "active",
+            "reports_to": "head_dev",
+            "tools": [
+                "imessage",
+                "telegram",
+                "email"
+            ]
+        },
+        "quinn": {
+            "name": "Quinn",
+            "role": "QA / Testing",
+            "department": "engineering",
+            "port": 3006,
+            "status": "planned",
+            "phase": 2,
+            "reports_to": "head_dev",
+            "tools": [
+                "playwright",
+                "jest",
+                "lighthouse",
+                "accessibility"
+            ]
+        },
+        "pixel": {
+            "name": "Pixel",
+            "role": "Graphic Designer",
+            "department": "creative",
+            "port": 3008,
+            "status": "planned",
+            "phase": 2,
+            "reports_to": "head_dev",
+            "tools": [
+                "dalle",
+                "figma_api",
+                "svg",
+                "brand_kit"
+            ]
+        },
+        "reel": {
+            "name": "Reel",
+            "role": "Video / Image Production",
+            "department": "creative",
+            "port": 3009,
+            "status": "planned",
+            "phase": 3,
+            "reports_to": "head_dev",
+            "tools": [
+                "ffmpeg",
+                "runway",
+                "image_gen",
+                "thumbnail"
+            ]
+        },
+        "ink": {
+            "name": "Ink",
+            "role": "Copywriter / Content",
+            "department": "creative",
+            "port": 3010,
+            "status": "planned",
+            "phase": 3,
+            "reports_to": "head_dev",
+            "tools": [
+                "seo",
+                "brand_voice",
+                "blog",
+                "social_media"
+            ]
+        },
+        "chase": {
+            "name": "Chase",
+            "role": "Sales / Outreach",
+            "department": "business",
+            "port": 3011,
+            "status": "planned",
+            "phase": 4,
+            "reports_to": "head_dev",
+            "tools": [
+                "crm",
+                "email_sequences",
+                "linkedin",
+                "proposals"
+            ]
+        },
+        "ledger": {
+            "name": "Ledger",
+            "role": "Finance / Analytics",
+            "department": "business",
+            "port": 3012,
+            "status": "planned",
+            "phase": 4,
+            "reports_to": "head_dev",
+            "tools": [
+                "stripe",
+                "quickbooks",
+                "reports",
+                "invoicing"
+            ]
+        },
+        "docker_dan": {
+            "name": "Docker Dan",
+            "role": "DevOps / Infrastructure",
+            "department": "engineering",
+            "port": 3007,
+            "status": "planned",
+            "phase": 5,
+            "reports_to": "head_dev",
+            "tools": [
+                "docker",
+                "terraform",
+                "monitoring",
+                "ci_cd"
+            ]
+        }
+    }
+}
