@@ -2,16 +2,16 @@
     "identity": {
         "name": "Bussit",
         "role": "Logistics / PM",
-        "port": 3002
+        "port": 7202
     },
     "fleet": {
         "registryPath": "./operating_system/fleet_registry.json",
         "gateway": "http://localhost:8080",
         "peers": {
-            "mo": "http://localhost:3003",
-            "stacy": "http://localhost:3001",
-            "head_dev": "http://localhost:3004",
-            "bubba": "http://localhost:3005"
+            "mo": "http://localhost:7203",
+            "stacy": "http://localhost:7201",
+            "head_dev": "http://localhost:7204",
+            "bubba": "http://localhost:7205"
         }
     },
     "capabilities": [

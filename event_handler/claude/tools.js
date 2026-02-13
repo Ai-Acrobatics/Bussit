@@ -382,14 +382,14 @@ const toolExecutors = {
     try {
       return listMCPServers(server);
     } catch (err) {
-      return \`Error listing MCP servers: \${err.message}\`;
+      return `Error listing MCP servers: ${err.message}`;
     }
   },
   mcp_call: async ({ server, tool, args }) => {
     try {
       return callMCPTool(server, tool, args || {});
     } catch (err) {
-      return \`Error calling MCP tool \${server}.\${tool}: \${err.message}\`;
+      return `Error calling MCP tool ${server}.${tool}: ${err.message}`;
     }
   },
   create_job: async (input) => {
@@ -526,7 +526,7 @@ const toolExecutors = {
   update_task: async (input) => {
     const data = readTasks();
     const task = data.tasks.find(t => t.id === input.task_id);
-    if (!task) return { success: false, error: `Task ${ input.task_id } not found` };
+    if (!task) return { success: false, error: `Task ${input.task_id} not found` };
     const botName = process.env.BOT_USERNAME || 'unknown';
     if (input.status) task.status = input.status;
     if (input.assigned_to) task.assigned_to = input.assigned_to;
