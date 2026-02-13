@@ -130,19 +130,27 @@ function markdownToTelegramHtml(text) {
  * Send a message to a Telegram chat with HTML formatting
  * Automatically splits long messages. Accepts both HTML and Markdown input.
  * @param {string} botToken - Bot token from @BotFather
+ * @param {string} token - Bot token from @BotFather
  * @param {number|string} chatId - Chat ID to send message to
  * @param {string} text - Message text (Markdown or HTML)
  * @param {Object} [options] - Additional options
  * @param {boolean} [options.disablePreview] - Disable link previews
  * @returns {Promise<Object>} - Last message sent
  */
-async function sendMessage(botToken, chatId, text, options = {}) {
-  const b = getBot(botToken);
+async function sendMessage(token, chatId, text, options = {}) {
+  const b = getBot(token);
+
+  // LOGGING: Index outgoing message
+  // Receiver is chatId (Group or User)
+  // Sender is "Me" (The Bot - need to know who I am? Env var BOT_USERNAME usually available)
+  const sender = process.env.BOT_USERNAME || 'bot';
+  logMessageToSupabase(sender, chatId.toString(), text, 'text').catch(e => console.error('Log Error:', e));
+
   // Convert Markdown to Telegram HTML (handles Claude's output format)
-  text = markdownToTelegramHtml(text);
+  let processedText = markdownToTelegramHtml(text);
   // Strip HTML comments — Telegram's HTML parser doesn't support them
-  text = text.replace(/<!--[\s\S]*?-->/g, '');
-  const chunks = smartSplit(text, MAX_LENGTH);
+  processedText = processedText.replace(/<!--[\s\S]*?-->/g, '');
+  const chunks = smartSplit(processedText, MAX_LENGTH);
 
   let lastMessage;
   for (const chunk of chunks) {

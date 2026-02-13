@@ -565,38 +565,67 @@ const toolExecutors = {
 for (const def of supabaseTasks.TOOL_DEFINITIONS) {
   // Avoid duplicates: rename if conflicts with existing task board tools
   const name = def.name === 'create_task' ? 'sb_create_task' :
-               def.name === 'update_task' ? 'sb_update_task' :
-               def.name;
+    def.name === 'update_task' ? 'sb_update_task' :
+      def.name;
   toolDefinitions.push({ ...def, name });
   if (supabaseTasks.HANDLERS[def.name]) {
     toolExecutors[name] = supabaseTasks.HANDLERS[def.name];
   }
 }
 
-
 // --- Memory System (remember/recall — persistent agent knowledge) ---
 let loadMemoryContext = async () => '';
 try {
-  const memoryTools = require(require('path').join(__dirname, '..', '..', '..', 'fleet_shared', 'tools', 'memory-system'));
+  const memoryTools = require(require("path").join(__dirname, "..", "..", "..", "fleet_shared", "tools", "memory-system"));
   for (const def of memoryTools.TOOL_DEFINITIONS) {
     toolDefinitions.push(def);
     if (memoryTools.HANDLERS[def.name]) toolExecutors[def.name] = memoryTools.HANDLERS[def.name];
   }
   loadMemoryContext = memoryTools.loadMemoryContext;
-} catch (e) { console.warn('[TOOLS] memory-system not available:', e.message); }
+} catch (e) { console.warn("[TOOLS] memory-system not available:", e.message); }
 
 // --- Dynamic tool loader for fleet_shared tools ---
-const FLEET_TOOLS = ['run-terminal','generate-image','self-improve','send-email','calendar','linear','notion','claude-code','voice-call','send-sms','output-log'];
+// --- Dynamic tool loader for fleet_shared tools ---
+const FLEET_TOOLS = ["run-terminal", "generate-image", "self-improve", "send-email", "calendar", "linear", "notion", "claude-code", "voice-call", "send-sms", 'output-log', 'identify_gap', 'check_my_tools', 'send-file', 'google-drive', 'google-contacts', 'google-calendar', 'google-gmail', 'google-tasks', 'google-sheets', 'google-slides'];
 for (const toolName of FLEET_TOOLS) {
   try {
-    const mod = require(require('path').join(__dirname, '..', '..', '..', 'fleet_shared', 'tools', toolName));
+    const mod = require(require("path").join(__dirname, "..", "..", "..", "fleet_shared", "tools", toolName));
     if (mod.TOOL_DEFINITIONS) {
       for (const def of mod.TOOL_DEFINITIONS) {
         toolDefinitions.push(def);
         if (mod.HANDLERS && mod.HANDLERS[def.name]) toolExecutors[def.name] = mod.HANDLERS[def.name];
       }
     }
-  } catch (e) { console.warn('[TOOLS] ' + toolName + ' not available:', e.message); }
+  } catch (e) { console.warn("[TOOLS] " + toolName + " not available:", e.message); }
 }
+
+// --- Voice (ElevenLabs) ---
+try {
+  const { sendVoiceMessage } = require(require("path").join(__dirname, "..", "..", "..", "fleet_shared", "tools", "voice"));
+  toolDefinitions.push({
+    name: 'send_voice',
+    description: 'Send a voice message (audio) to the group or user using ElevenLabs TTS.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', description: 'Text to speak.' },
+        voice_id: { type: 'string', description: 'Optional ElevenLabs voice ID.' }
+      },
+      required: ['message']
+    }
+  });
+  toolExecutors['send_voice'] = async (input) => {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const gids = (process.env.TELEGRAM_GROUP_IDS || '').split(',');
+    // Default to Group
+    const chatId = gids[0] ? gids[0].trim() : process.env.TELEGRAM_CHAT_ID;
+    if (!token || !chatId) return { success: false, error: 'Target not configured' };
+
+    try {
+      await sendVoiceMessage(token, chatId, input.message, input.voice_id);
+      return { success: true, sent_to: chatId };
+    } catch (err) { return { success: false, error: err.message }; }
+  };
+} catch (e) { console.warn("[TOOLS] voice not available:", e.message); }
 
 module.exports = { toolDefinitions, toolExecutors, loadMemoryContext };

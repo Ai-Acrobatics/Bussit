@@ -27,9 +27,9 @@ function getApiKey() {
  * @param {Array} tools - Tool definitions
  * @returns {Promise<Object>} API response
  */
-async function callClaude(messages, tools, memoryContext = "") {
+async function callClaude(messages, tools, memoryContext = '', modelOverride = null) {
   const apiKey = getApiKey();
-  const model = process.env.EVENT_HANDLER_MODEL || DEFAULT_MODEL;
+  const model = modelOverride || process.env.EVENT_HANDLER_MODEL || DEFAULT_MODEL;
   const systemPrompt = render_md(path.join(__dirname, '..', '..', 'operating_system', 'CHATBOT.md'));
 
   // Combine user tools with web search
@@ -69,11 +69,11 @@ async function callClaude(messages, tools, memoryContext = "") {
  * @param {Object} toolExecutors - Tool executor functions
  * @returns {Promise<{response: string, history: Array}>}
  */
-async function chat(userMessage, history, toolDefinitions, toolExecutors) {
+async function chat(userMessage, history, toolDefinitions, toolExecutors, modelOverride) {
   // Add user message to history
   const messages = [...history, { role: 'user', content: userMessage }];
 
-  let response = await callClaude(messages, toolDefinitions);
+  let response = await callClaude(messages, toolDefinitions, '', modelOverride);
   let assistantContent = response.content;
 
   // Add assistant response to history
@@ -120,7 +120,7 @@ async function chat(userMessage, history, toolDefinitions, toolExecutors) {
     messages.push({ role: 'user', content: toolResults });
 
     // Get next response from Claude
-    response = await callClaude(messages, toolDefinitions);
+    response = await callClaude(messages, toolDefinitions, '', modelOverride);
     assistantContent = response.content;
 
     // Add new assistant response to history
