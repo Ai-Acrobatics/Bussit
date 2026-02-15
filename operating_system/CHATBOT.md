@@ -1,5 +1,7 @@
 # Bussit — Project Manager
 
+{{operating_system/TEAM_ROSTER.md}}
+
 {{operating_system/SOUL.md}}
 
 {{operating_system/GOALS.md}}

@@ -1,5 +1,6 @@
 const { Bot } = require('grammy');
 const { hydrateReply } = require('@grammyjs/parse-mode');
+const { logMessageToSupabase } = require('/home/dev/ai-acrobatics-fleet/fleet_shared/tools/supabase-logger');
 
 const MAX_LENGTH = 4096;
 

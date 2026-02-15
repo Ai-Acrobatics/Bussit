@@ -2,7 +2,7 @@ const express = require('express');
 const helmet = require('helmet');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const { createJob } = require('./tools/create-job');
 const { initCrons } = require('/home/dev/ai-acrobatics-fleet/fleet_shared/tools/cron-manager');
@@ -13,7 +13,8 @@ const { chat } = require('./claude');
 const { toolDefinitions, toolExecutors } = require('./claude/tools');
 const { getToolsForAgent } = require('/home/dev/ai-acrobatics-fleet/fleet_shared/tools/tool-registry');
 const { getHistory, updateHistory } = require('./claude/conversation');
-const { logMessageToSupabase } = require('/home/dev/ai-acrobatics-fleet/fleet_shared/tools/supabase-logger');
+const supabaseLogger = require('/home/dev/ai-acrobatics-fleet/fleet_shared/tools/supabase-logger');
+const { logMessageToSupabase } = supabaseLogger;
 
 // ─── Load agent config and build filtered tool set ───
 let agentToolDefs = toolDefinitions;
@@ -141,15 +142,25 @@ app.post('/telegram/webhook', async (req, res) => {
     const botUsername = process.env.BOT_USERNAME || '';
     const botDepartment = process.env.BOT_DEPARTMENT || '';
 
+    
     // LOGGING: Index incoming message to Supabase
     const receiver = message.chat.type === 'private' ? botUsername : (message.chat.title || message.chat.id.toString());
     const sender = message.from.username || message.from.first_name || 'unknown';
 
     if (message.text) {
       logMessageToSupabase(sender, receiver, message.text, 'text').catch(err => console.error('Log Error:', err));
+    } else if (message.photo) {
+      // Handle Photos
+      const fileId = message.photo[message.photo.length - 1].file_id; // Best quality
+      logMessageToSupabase(sender, receiver, `[Photo] FileID: ${fileId}`, 'image').catch(err => console.error('Log Error:', err));
+    } else if (message.document) {
+      // Handle Documents
+      const fileName = message.document.file_name || 'document';
+      logMessageToSupabase(sender, receiver, `[Document] ${fileName} (${message.document.mime_type})`, 'file').catch(err => console.error('Log Error:', err));
     } else if (message.voice) {
       logMessageToSupabase(sender, receiver, '[Voice Message]', 'voice').catch(err => console.error('Log Error:', err));
     }
+
 
     console.log(`[Telegram] From: ${sender} Text: ${message.text || '[Non-text]'}`);
 
@@ -231,7 +242,7 @@ app.post('/telegram/webhook', async (req, res) => {
     if (message.text) {
       const stopTyping = startTypingIndicator(telegramBotToken, chatId);
       try {
-        const history = getHistory(chatId);
+        const history = await getHistory(chatId);
         const { response, history: newHistory } = await chat(
           message.text, // Use raw text or processed? Using raw for now to avoid regex bugs
           history,
@@ -339,7 +350,7 @@ app.use((err, req, res, next) => {
 
 const { pollMessages } = require('/home/dev/ai-acrobatics-fleet/fleet_shared/tools/relay-poller');
 
-const POLL_INTERVAL = 10000;
+const POLL_INTERVAL = 3000;
 const myName = process.env.BOT_USERNAME || 'unknown_bot';
 const myGroups = (process.env.TELEGRAM_GROUP_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
 
@@ -367,20 +378,20 @@ app.listen(PORT, () => {
         const chatId = (receiver === myName || receiver === 'all') ? `dm_${sender}` : receiver;
 
         try {
-          const history = getHistory(chatId);
+          const history = await getHistory(chatId);
           const { response, history: newHistory } = await chat(
             contextText,
             history,
             agentToolDefs,
             agentToolExecs,
-            'claude-3-haiku-20240307'
+            process.env.EVENT_HANDLER_MODEL
           );
           updateHistory(chatId, newHistory);
 
           if (receiver !== myName && receiver !== 'all') {
             await sendMessage(telegramBotToken, receiver, response);
           } else {
-            await logMessageToSupabase(myName, sender, response, 'text');
+            await supabaseLogger.logMessageToSupabase(myName, sender, response, 'text');
             console.log(`[Relay] Replied to ${sender} via DB`);
           }
         } catch (err) {
