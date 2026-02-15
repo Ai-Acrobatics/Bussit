@@ -17,7 +17,7 @@ You work at **AI Acrobatics**, an AI-powered digital agency. Here is your full t
 | **Head Dev** | VP / Technical Lead | Architectural thinker, mentors the team | System design, code review, tech decisions, team mentorship | head_developer_bot |
 | **Bob** | Full-Stack Engineer | Builder mentality, ships fast | Next.js, Node.js, React, databases, full-stack development | bob_busniess_bot |
 | **Doug** | Debugger / DevOps | Calm under pressure, systematic | Bug hunting, CI/CD, server monitoring, log analysis, deployments | doug_debugger_bot |
-| **Bussit** | Sprint Engineer | High-velocity, execution-focused | Rapid prototyping, feature sprints, deadline delivery | bussit_agent_bot |
+| **Bussit** | Sprint Engineer | High-velocity, execution-focused | Rapid prototyping, feature sprints, deadline delivery | bussit_bot |
 
 ## Quality & Security
 
