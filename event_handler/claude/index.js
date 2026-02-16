@@ -1,7 +1,24 @@
 const path = require('path');
 const { render_md } = require('../utils/render-md');
+const { logTokenUsage, estimateTokens } = require('/home/dev/ai-acrobatics-fleet/fleet_shared/tools/token-tracker');
 
 const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+
+// Context window limits per model (in tokens, conservative to leave room for response)
+const MODEL_CONTEXT_LIMITS = {
+  'moonshot-v1-8k': 6000,
+  'moonshot-v1-32k': 28000,
+  'moonshot-v1-128k': 120000,
+  'kimi-k2.5': 120000,
+  'gpt-4o-mini': 120000,
+  'gpt-4o': 120000,
+};
+
+// Fallback chain: if primary provider fails, try these
+const FALLBACK_CHAIN = {
+  'kimi': { provider: 'openai', model: 'gpt-4o-mini' },
+  'openai': { provider: 'kimi', model: 'moonshot-v1-32k' },
+};
 
 // Web search tool definition (Anthropic built-in)
 const WEB_SEARCH_TOOL = {
@@ -27,10 +44,49 @@ function getApiKey() {
  * @param {Array} tools - Tool definitions
  * @returns {Promise<Object>} Formatted response (Claude style)
  */
-async function callLLM(messages, tools, memoryContext = '', modelOverride = null) {
-  const provider = process.env.LLM_PROVIDER || 'anthropic'; // 'anthropic', 'ollama'
+async function callLLM(messages, tools, memoryContext = '', modelOverride = null, providerOverride = null, _messageType = 'chat') {
+  const provider = providerOverride || process.env.LLM_PROVIDER || 'anthropic';
   const model = modelOverride || process.env.EVENT_HANDLER_MODEL || DEFAULT_MODEL;
-  const systemPrompt = render_md(path.join(__dirname, '..', '..', 'operating_system', 'CHATBOT.md'));
+  const basePrompt = render_md(path.join(__dirname, '..', '..', 'operating_system', 'CHATBOT.md'));
+  const agentName = process.env.BOT_USERNAME || 'unknown';
+  // Inject long-term memory into system prompt (kept lean to avoid context bloat)
+  const systemPrompt = memoryContext ? `${basePrompt}\n\n${memoryContext}` : basePrompt;
+
+  // Trim conversation history if it exceeds model's context window
+  const contextLimit = MODEL_CONTEXT_LIMITS[model] || 120000;
+  let trimmedMessages = messages;
+  const totalEstimate = estimateTokens(systemPrompt) + estimateTokens(messages);
+  if (totalEstimate > contextLimit) {
+    // Keep system prompt + first message + last N messages that fit
+    const targetTokens = contextLimit - estimateTokens(systemPrompt) - 500; // 500 buffer
+    let kept = [];
+    let tokenCount = 0;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msgTokens = estimateTokens(messages[i]);
+      if (tokenCount + msgTokens > targetTokens) break;
+      kept.unshift(messages[i]);
+      tokenCount += msgTokens;
+    }
+    trimmedMessages = kept;
+    console.log(`[LLM] Trimmed ${messages.length} → ${trimmedMessages.length} messages (${totalEstimate} → ${tokenCount} est tokens) for ${model} (limit: ${contextLimit})`);
+  }
+
+  try {
+    const result = await _callProvider(provider, model, trimmedMessages, tools, systemPrompt, agentName, _messageType);
+    return result;
+  } catch (err) {
+    // FALLBACK: If primary provider fails with 429/balance/rate limit, try fallback
+    const isRateLimit = err.message && (err.message.includes('429') || err.message.includes('insufficient') || err.message.includes('balance') || err.message.includes('quota'));
+    const fallback = FALLBACK_CHAIN[provider];
+    if (isRateLimit && fallback && process.env.OPENAI_API_KEY) {
+      console.log(`[LLM] ⚠️ ${provider} failed (${err.message}). Falling back to ${fallback.provider}/${fallback.model}`);
+      return await _callProvider(fallback.provider, fallback.model, trimmedMessages, tools, systemPrompt, agentName, _messageType);
+    }
+    throw err; // Re-throw if not a rate limit or no fallback
+  }
+}
+
+async function _callProvider(provider, model, messages, tools, systemPrompt, agentName, messageType) {
 
   // --- ANTHROPIC ---
   if (provider === 'anthropic') {
@@ -178,7 +234,7 @@ async function callLLM(messages, tools, memoryContext = '', modelOverride = null
           model,
           messages: adaptedMessages,
           stream: false,
-          max_tokens: 4096,
+          max_tokens: parseInt(process.env.MAX_RESPONSE_TOKENS) || 4096,
         }),
         signal: controller.signal,
       });
@@ -193,8 +249,21 @@ async function callLLM(messages, tools, memoryContext = '', modelOverride = null
       throw new Error(`Kimi API error: ${response.status} ${error}`);
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      const rawText = await response.text();
+      data = JSON.parse(rawText);
+    } catch (parseErr) {
+      throw new Error(`Kimi response parse error: ${parseErr.message}`);
+    }
     console.log(`[Kimi] Response received. Model: ${data.model}, Tokens: ${data.usage?.total_tokens || '?'}`);
+    // Log token usage
+    logTokenUsage({
+      agent: agentName, model, provider: 'kimi',
+      inputTokens: data.usage?.prompt_tokens || estimateTokens(messages),
+      outputTokens: data.usage?.completion_tokens || 0,
+      messageType,
+    }).catch(() => { });
     const choice = data.choices[0];
 
     const contentArray = [];
@@ -229,6 +298,87 @@ async function callLLM(messages, tools, memoryContext = '', modelOverride = null
     };
   }
 
+  // --- OPENAI (gpt-4o-mini, gpt-4o, etc.) ---
+  if (provider === 'openai') {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error('OPENAI_API_KEY required for OpenAI provider');
+
+    const baseURL = 'https://api.openai.com/v1';
+    console.log(`[OpenAI] Calling with model ${model}...`);
+
+    const adaptedMessages = messages.map(m => {
+      let content = m.content;
+      if (Array.isArray(content)) {
+        content = content.filter(c => c.type === 'text').map(c => c.text).join('\n');
+      }
+      return { role: m.role, content };
+    });
+
+    adaptedMessages.unshift({ role: 'system', content: systemPrompt });
+
+    const maxTokens = parseInt(process.env.MAX_RESPONSE_TOKENS) || 4096;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+
+    let response;
+    try {
+      response = await fetch(`${baseURL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: adaptedMessages,
+          stream: false,
+          max_tokens: maxTokens,
+        }),
+        signal: controller.signal,
+      });
+    } catch (fetchErr) {
+      clearTimeout(timeout);
+      throw new Error(`OpenAI fetch failed: ${fetchErr.message}`);
+    }
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`OpenAI API error: ${response.status} ${error}`);
+    }
+
+    let data;
+    try {
+      const rawText = await response.text();
+      data = JSON.parse(rawText);
+    } catch (parseErr) {
+      throw new Error(`OpenAI response parse error: ${parseErr.message}`);
+    }
+    console.log(`[OpenAI] Response received. Model: ${data.model}, Tokens: ${data.usage?.total_tokens || '?'}`);
+    // Log token usage
+    logTokenUsage({
+      agent: agentName, model, provider: 'openai',
+      inputTokens: data.usage?.prompt_tokens || estimateTokens(messages),
+      outputTokens: data.usage?.completion_tokens || 0,
+      messageType,
+    }).catch(() => { });
+    const choice = data.choices[0];
+
+    const contentArray = [];
+    if (choice.message.content) {
+      contentArray.push({ type: 'text', text: choice.message.content });
+    }
+
+    return {
+      stop_reason: 'end_turn',
+      content: contentArray,
+      id: data.id,
+      model: data.model,
+      role: 'assistant'
+    };
+  }
+
   throw new Error(`Unknown LLM_PROVIDER: ${provider}`);
 }
 
@@ -240,11 +390,19 @@ async function callLLM(messages, tools, memoryContext = '', modelOverride = null
  * @param {Object} toolExecutors - Tool executor functions
  * @returns {Promise<{response: string, history: Array}>}
  */
-async function chat(userMessage, history, toolDefinitions, toolExecutors, modelOverride) {
+async function chat(userMessage, history, toolDefinitions, toolExecutors, modelOverride, providerOverride) {
   // Add user message to history
   const messages = [...history, { role: 'user', content: userMessage }];
 
-  let response = await callLLM(messages, toolDefinitions, '', modelOverride);
+  // Load persistent long-term memory from Supabase (top 5 items, kept lean)
+  let memoryContext = '';
+  try {
+    const { loadMemoryContext } = require('./tools');
+    const agentId = process.env.BOT_USERNAME || 'unknown';
+    memoryContext = await loadMemoryContext(agentId, 5);
+  } catch { /* memory is optional */ }
+
+  let response = await callLLM(messages, toolDefinitions, memoryContext, modelOverride, providerOverride);
   let assistantContent = response.content;
 
   // Add assistant response to history
@@ -296,7 +454,7 @@ async function chat(userMessage, history, toolDefinitions, toolExecutors, modelO
     messages.push({ role: 'user', content: toolResults });
 
     // Get next response from LLM
-    response = await callLLM(messages, toolDefinitions, '', modelOverride);
+    response = await callLLM(messages, toolDefinitions, '', modelOverride, providerOverride);
     assistantContent = response.content;
 
     // Add new assistant response to history

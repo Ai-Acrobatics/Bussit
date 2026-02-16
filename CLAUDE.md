@@ -1,16 +1,16 @@
-# thepopebot - AI Agent Template
+# this agent - AI Agent Template
 
-This document explains the thepopebot codebase for AI assistants working on this project.
+This document explains the this agent codebase for AI assistants working on this project.
 
-## What is thepopebot?
+## What is this agent?
 
-thepopebot is a **template repository** for creating custom autonomous AI agents. It features a two-layer architecture: an Event Handler for orchestration (webhooks, Telegram chat, cron scheduling) and a Docker Agent for autonomous task execution via the Pi coding agent.
+this agent is a **template repository** for creating custom autonomous AI agents. It features a two-layer architecture: an Event Handler for orchestration (webhooks, Telegram chat, cron scheduling) and a Docker Agent for autonomous task execution via the Pi coding agent.
 
 ## Two-Layer Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                          thepopebot Architecture                          │
+│                          this agent Architecture                          │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
 │   ┌──────────────────┐                                                   │
@@ -328,7 +328,7 @@ The Dockerfile creates a container with:
 6. Clone repository branch to `/job`
 7. Run Pi with SOUL.md + job.md as prompt
 8. Save session log to `logs/{JOB_ID}/`
-9. Commit all changes with message `thepopebot: job {JOB_ID}`
+9. Commit all changes with message `this agent: job {JOB_ID}`
 10. Create PR via `gh pr create` (auto-merge handled by `auto-merge.yml` workflow)
 
 ### Environment Variables (Docker Agent)
@@ -358,7 +358,7 @@ on:
 
 ### run-job.yml
 
-Triggers when a `job/*` branch is created. Runs the Docker agent container. If `IMAGE_URL` is set, pulls from that registry (logs into GHCR automatically for `ghcr.io/` URLs); otherwise falls back to `stephengpope/thepopebot:latest` from Docker Hub.
+Triggers when a `job/*` branch is created. Runs the Docker agent container. If `IMAGE_URL` is set, pulls from that registry (logs into GHCR automatically for `ghcr.io/` URLs); otherwise falls back to `stephengpope/this agent:latest` from Docker Hub.
 
 ```yaml
 on:
@@ -415,7 +415,7 @@ Configure these in **Settings → Secrets and variables → Actions → Variable
 | `GH_WEBHOOK_URL` | Event handler URL (e.g., `https://your-server.com`) | — |
 | `AUTO_MERGE` | Set to `false` to disable auto-merge of job PRs | Enabled (any value except `false`) |
 | `ALLOWED_PATHS` | Comma-separated path prefixes (e.g., `/logs`). Use `/` for all paths. | `/logs` |
-| `IMAGE_URL` | Full Docker image path (e.g., `ghcr.io/myorg/mybot`). GHCR URLs trigger automatic builds via `docker-build.yml`. Non-GHCR URLs (e.g., `docker.io/user/mybot`) are pulled directly. | Not set (uses `stephengpope/thepopebot:latest`) |
+| `IMAGE_URL` | Full Docker image path (e.g., `ghcr.io/myorg/mybot`). GHCR URLs trigger automatic builds via `docker-build.yml`. Non-GHCR URLs (e.g., `docker.io/user/mybot`) are pulled directly. | Not set (uses `stephengpope/this agent:latest`) |
 | `MODEL` | Anthropic model ID for the Pi agent (e.g., `claude-sonnet-4-5-20250929`) | Not set (Pi default) |
 
 ## How Credentials Work

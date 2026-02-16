@@ -9,10 +9,10 @@ const { initCrons } = require('/home/dev/ai-acrobatics-fleet/fleet_shared/tools/
 const { loadTriggers } = require('./triggers');
 const { setWebhook, sendMessage, formatJobNotification, downloadFile, reactToMessage, startTypingIndicator } = require('./tools/telegram');
 const { isWhisperEnabled, transcribeAudio } = require('./tools/openai');
-const { chat } = require('./claude');
+const { chat } = require('/home/dev/ai-acrobatics-fleet/fleet_shared/chat');
 const { toolDefinitions, toolExecutors } = require('./claude/tools');
 const { getToolsForAgent } = require('/home/dev/ai-acrobatics-fleet/fleet_shared/tools/tool-registry');
-const { getHistory, updateHistory } = require('./claude/conversation');
+const { getHistory, updateHistory } = require('/home/dev/ai-acrobatics-fleet/fleet_shared/chat/conversation');
 const supabaseLogger = require('/home/dev/ai-acrobatics-fleet/fleet_shared/tools/supabase-logger');
 const { logMessageToSupabase } = supabaseLogger;
 
@@ -32,7 +32,7 @@ try {
   console.warn('⚠️  Could not load agent config for tool filtering, using all tools:', err.message);
 }
 const { githubApi, getJobStatus } = require('./tools/github');
-const { getApiKey } = require('./claude');
+const { getApiKey } = require('/home/dev/ai-acrobatics-fleet/fleet_shared/chat');
 const { render_md } = require('./utils/render-md');
 
 const app = express();
@@ -142,7 +142,7 @@ app.post('/telegram/webhook', async (req, res) => {
     const botUsername = process.env.BOT_USERNAME || '';
     const botDepartment = process.env.BOT_DEPARTMENT || '';
 
-    
+
     // LOGGING: Index incoming message to Supabase
     const receiver = message.chat.type === 'private' ? botUsername : (message.chat.title || message.chat.id.toString());
     const sender = message.from.username || message.from.first_name || 'unknown';
@@ -367,15 +367,87 @@ app.listen(PORT, () => {
         console.log(`[Relay] Processing msg from ${sender}: ${text}`);
         if (sender === myName) return;
 
+        // --- Cron/Internal messages: never forward to Telegram ---
+        const isSystemMessage = sender === 'sys_cron' ||
+          /heartbeat|SYSTEM_ONLINE/i.test(text);
+
+        if (isSystemMessage) {
+          console.log(`[Relay] 🔇 Internal message from ${sender} — processing silently`);
+          // Process sys_cron agent tasks without Telegram spam
+          if (sender === 'sys_cron' && text.startsWith('REQUEST:')) {
+            try {
+              const contextText = `[Internal cron task]: ${text}`;
+              const chatId = `cron_${myName}`;
+              const useModel = process.env.CHAT_MODEL || process.env.EVENT_HANDLER_MODEL;
+              const useProvider = process.env.CHAT_PROVIDER || process.env.LLM_PROVIDER;
+              const history = await getHistory(chatId);
+              const { response, history: newHistory } = await chat(
+                contextText, history, agentToolDefs, agentToolExecs, useModel, useProvider
+              );
+              updateHistory(chatId, newHistory);
+
+              // Always log to Supabase so reports are visible in Dashboard Daddy
+              await supabaseLogger.logMessageToSupabase(myName, 'cron_output', response, 'text');
+              console.log(`[Relay] ✅ Cron task done: ${response.substring(0, 80)}...`);
+
+              // Forward SUBSTANTIVE outputs to Telegram (reports, analyses, alerts)
+              // Skip short acks like "Done", "SYSTEM_ONLINE", heartbeat confirmations
+              const isSubstantive = response.length > 200 &&
+                /report|analysis|summary|alert|warning|findings|update|insight|recommend/i.test(response);
+              if (isSubstantive && telegramBotToken && TELEGRAM_CHAT_ID) {
+                const label = `📊 [${myName} cron report]\n${response}`;
+                await sendMessage(telegramBotToken, TELEGRAM_CHAT_ID, label);
+                console.log(`[Relay] 📊 Forwarded cron report to Telegram (${response.length} chars)`);
+              }
+            } catch (cronErr) {
+              console.error(`[Relay] Cron task failed:`, cronErr.message);
+            }
+          }
+          return; // Heartbeat broadcasts never reach Telegram
+        }
+
+        // --- Agent-to-Agent Communication Rules ---
+        // Agents only communicate for: task assignments, important updates, handoffs
+        // Agents do NOT have back-and-forth conversations with each other
+        const isFromOwner = sender === 'owner' || sender === 'julian';
+        const isFromAgent = !isFromOwner; // Everything not from owner is agent-to-agent
+
+        // Mo CEO: forward important agent messages to owner's Telegram
         if (myName.toLowerCase().includes('mo') && receiver === myName) {
           if (telegramBotToken && TELEGRAM_CHAT_ID) {
-            await sendMessage(telegramBotToken, TELEGRAM_CHAT_ID, `Example Agent ${sender} says: ${text}`);
+            await sendMessage(telegramBotToken, TELEGRAM_CHAT_ID, `[${sender}]: ${text}`);
           }
           return;
         }
 
-        const contextText = `[Message from Agent ${sender}]: ${text}`;
+        // Agent-to-agent: silently drop — prevents conversation loops
+        // Agents use send_agent_message tool to intentionally delegate tasks
+        // Replies to those messages are suppressed to avoid back-and-forth
+        if (isFromAgent) {
+          console.log(`[Relay] 📨 Received from agent ${sender} — dropped (loop prevention)`);
+          return;
+        }
+
+        const contextText = `[Message from ${sender}]: ${text}`;
         const chatId = (receiver === myName || receiver === 'all') ? `dm_${sender}` : receiver;
+
+        // Smart model routing: use cheap CHAT_MODEL for simple fleet chat,
+        // escalate to premium EVENT_HANDLER_MODEL for complex reasoning/tasks
+        const needsReasoning = /\b(analyze|review|debug|investigate|plan|architect|design|estimate|audit|assess|create task|assign|delegate|build|implement|deploy|fix|diagnose)\b/i.test(text);
+        const needsTools = /\b(search|look up|check|run|execute|find|list|scan|fetch)\b/i.test(text);
+
+        let useModel, useProvider;
+        if (isFromOwner || needsReasoning || needsTools) {
+          // Premium path: owner messages or complex tasks
+          useModel = process.env.EVENT_HANDLER_MODEL;
+          useProvider = process.env.LLM_PROVIDER;
+          console.log(`[Relay] 🧠 Premium model: ${useModel} (reason: ${isFromOwner ? 'owner' : needsReasoning ? 'reasoning' : 'tools'})`);
+        } else {
+          // Economy path: simple fleet chat
+          useModel = process.env.CHAT_MODEL || process.env.EVENT_HANDLER_MODEL;
+          useProvider = process.env.CHAT_PROVIDER || process.env.LLM_PROVIDER;
+          console.log(`[Relay] 💬 Chat model: ${useModel}`);
+        }
 
         try {
           const history = await getHistory(chatId);
@@ -384,7 +456,8 @@ app.listen(PORT, () => {
             history,
             agentToolDefs,
             agentToolExecs,
-            process.env.EVENT_HANDLER_MODEL
+            useModel,
+            useProvider
           );
           updateHistory(chatId, newHistory);
 
