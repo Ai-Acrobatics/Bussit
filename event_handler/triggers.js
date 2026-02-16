@@ -5,6 +5,15 @@ const { executeAction } = require('./actions');
 const TRIGGERS_DIR = path.join(__dirname, 'triggers');
 
 /**
+ * Escape shell metacharacters to prevent command injection
+ * @param {string} str - Untrusted string to sanitize
+ * @returns {string}
+ */
+function escapeShell(str) {
+  return str.replace(/[;&|`$(){}[\]!#~<>*?\\\n\r"']/g, '');
+}
+
+/**
  * Replace {{body.field}} templates with values from request context
  * @param {string} template - String with {{body.field}} placeholders
  * @param {Object} context - { body, query, headers }
@@ -14,8 +23,11 @@ function resolveTemplate(template, context) {
   return template.replace(/\{\{(\w+)(?:\.(\w+))?\}\}/g, (match, source, field) => {
     const data = context[source];
     if (data === undefined) return match;
-    if (!field) return typeof data === 'string' ? data : JSON.stringify(data, null, 2);
-    if (data[field] !== undefined) return String(data[field]);
+    if (!field) {
+      const val = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+      return escapeShell(val);
+    }
+    if (data[field] !== undefined) return escapeShell(String(data[field]));
     return match;
   });
 }

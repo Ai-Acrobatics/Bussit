@@ -1,7 +1,10 @@
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 const { promisify } = require('util');
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const { createJob } = require('./tools/create-job');
+
+// Allowlist of safe commands for action execution
+const ALLOWED_COMMANDS = new Set(['node', 'npm', 'git', 'curl', 'echo', 'ls', 'cat', 'date']);
 
 /**
  * Execute a single action
@@ -13,7 +16,13 @@ async function executeAction(action, opts = {}) {
   const type = action.type || 'agent';
 
   if (type === 'command') {
-    const { stdout, stderr } = await execAsync(action.command, { cwd: opts.cwd });
+    const parts = action.command.split(/\s+/);
+    const cmd = parts[0];
+    const args = parts.slice(1);
+    if (!ALLOWED_COMMANDS.has(cmd)) {
+      throw new Error(`Command not allowed: ${cmd}`);
+    }
+    const { stdout, stderr } = await execFileAsync(cmd, args, { cwd: opts.cwd });
     return (stdout || stderr || '').trim();
   }
 

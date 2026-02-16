@@ -2,10 +2,11 @@ const { createJob } = require('../tools/create-job');
 const { getJobStatus } = require('../tools/github');
 const { sendMessage } = require('../tools/telegram');
 const fs = require('fs');
+const fsp = fs.promises;
 const path = require('path');
 
 // Shared fleet tools — absolute paths so every agent uses the same modules
-const FLEET_SHARED = '/home/dev/.gemini/antigravity/scratch/fleet_shared';
+const FLEET_SHARED = '/home/dev/ai-acrobatics-fleet/fleet_shared';
 const TASKS_FILE = path.join(FLEET_SHARED, 'fleet_tasks.json');
 const TEAM_DIR_FILE = path.join(FLEET_SHARED, 'TEAM_DIRECTORY.md');
 
@@ -27,13 +28,13 @@ function getCronsPath() {
 }
 
 // --- Task Board Helpers ---
-function readTasks() {
-  try { return JSON.parse(fs.readFileSync(TASKS_FILE, 'utf8')); }
+async function readTasks() {
+  try { return JSON.parse(await fsp.readFile(TASKS_FILE, 'utf8')); }
   catch { return { last_updated: new Date().toISOString(), tasks: [] }; }
 }
-function writeTasks(data) {
+async function writeTasks(data) {
   data.last_updated = new Date().toISOString();
-  fs.writeFileSync(TASKS_FILE, JSON.stringify(data, null, 2));
+  await fsp.writeFile(TASKS_FILE, JSON.stringify(data, null, 2));
 }
 function nextTaskId(tasks) {
   const nums = tasks.map(t => parseInt(t.id.replace('TASK-', '')) || 0);
@@ -41,12 +42,12 @@ function nextTaskId(tasks) {
 }
 
 // --- Cron Helpers ---
-function readCrons() {
-  try { return JSON.parse(fs.readFileSync(getCronsPath(), 'utf8')); }
+async function readCrons() {
+  try { return JSON.parse(await fsp.readFile(getCronsPath(), 'utf8')); }
   catch { return { crons: [] }; }
 }
-function writeCrons(data) {
-  fs.writeFileSync(getCronsPath(), JSON.stringify(data, null, 2));
+async function writeCrons(data) {
+  await fsp.writeFile(getCronsPath(), JSON.stringify(data, null, 2));
 }
 
 // ========== TOOL DEFINITIONS (22 tools) ==========
@@ -499,7 +500,7 @@ const toolExecutors = {
 
   // Tasks
   get_team_tasks: async (input) => {
-    const data = readTasks();
+    const data = await readTasks();
     let tasks = data.tasks;
     if (input.status) tasks = tasks.filter(t => t.status === input.status);
     if (input.assigned_to) tasks = tasks.filter(t => t.assigned_to === input.assigned_to);
@@ -512,7 +513,7 @@ const toolExecutors = {
     };
   },
   create_task: async (input) => {
-    const data = readTasks();
+    const data = await readTasks();
     const botName = process.env.BOT_USERNAME || 'unknown';
     const task = {
       id: nextTaskId(data.tasks), title: input.title, description: input.description,
@@ -521,11 +522,11 @@ const toolExecutors = {
       created_at: new Date().toISOString(), due_date: null, tags: input.tags || [], updates: [],
     };
     data.tasks.push(task);
-    writeTasks(data);
+    await writeTasks(data);
     return { success: true, task_id: task.id, title: task.title };
   },
   update_task: async (input) => {
-    const data = readTasks();
+    const data = await readTasks();
     const task = data.tasks.find(t => t.id === input.task_id);
     if (!task) return { success: false, error: `Task ${input.task_id} not found` };
     const botName = process.env.BOT_USERNAME || 'unknown';
@@ -533,29 +534,29 @@ const toolExecutors = {
     if (input.assigned_to) task.assigned_to = input.assigned_to;
     if (input.priority) task.priority = input.priority;
     if (input.note) task.updates.push({ by: botName, at: new Date().toISOString(), note: input.note });
-    writeTasks(data);
+    await writeTasks(data);
     return { success: true, task_id: task.id, status: task.status, updates_count: task.updates.length };
   },
 
   // Team & Scheduling
   get_team_directory: async () => {
-    try { return { success: true, directory: fs.readFileSync(TEAM_DIR_FILE, 'utf8') }; }
+    try { return { success: true, directory: await fsp.readFile(TEAM_DIR_FILE, 'utf8') }; }
     catch { return { success: false, error: 'Team directory not found' }; }
   },
-  get_my_crons: async () => ({ success: true, crons: readCrons().crons || [] }),
+  get_my_crons: async () => ({ success: true, crons: (await readCrons()).crons || [] }),
   add_cron: async (input) => {
-    const data = readCrons();
+    const data = await readCrons();
     data.crons = (data.crons || []).filter(c => c.name !== input.name);
     data.crons.push({ name: input.name, schedule: input.schedule, task: input.task, enabled: input.enabled !== false, added_at: new Date().toISOString() });
-    writeCrons(data);
+    await writeCrons(data);
     return { success: true, name: input.name, schedule: input.schedule };
   },
   remove_cron: async (input) => {
-    const data = readCrons();
+    const data = await readCrons();
     const before = (data.crons || []).length;
     data.crons = (data.crons || []).filter(c => c.name !== input.name);
     if (data.crons.length === before) return { success: false, error: `Cron "${input.name}" not found` };
-    writeCrons(data);
+    await writeCrons(data);
     return { success: true, removed: input.name };
   },
 };

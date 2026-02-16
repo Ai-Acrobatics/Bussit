@@ -7,9 +7,8 @@
             "name": "Mo",
             "role": "CEO / World-Class Manager",
             "department": "executive",
-            "port": 3003,
-            "status": "planned",
-            "phase": 2,
+            "port": 7203,
+            "status": "active",
             "reports_to": "owner",
             "manages": [
                 "head_dev",
@@ -25,7 +24,7 @@
             "name": "The Architect",
             "role": "VP / Technical Lead",
             "department": "executive",
-            "port": 3004,
+            "port": 7204,
             "status": "active",
             "telegram_token_ref": "8059203719",
             "reports_to": "mo",
@@ -43,7 +42,7 @@
             "name": "Bob",
             "role": "Builder",
             "department": "engineering",
-            "port": 3000,
+            "port": 7200,
             "status": "active",
             "telegram_token_ref": "8313028178",
             "reports_to": "head_dev",
@@ -58,7 +57,7 @@
             "name": "Stacy",
             "role": "Customer Support",
             "department": "operations",
-            "port": 3001,
+            "port": 7201,
             "status": "active",
             "telegram_token_ref": "7997035810",
             "reports_to": "head_dev",
@@ -72,7 +71,7 @@
             "name": "Bussit",
             "role": "Logistics / PM",
             "department": "operations",
-            "port": 3002,
+            "port": 7202,
             "status": "active",
             "reports_to": "head_dev",
             "tools": [
@@ -85,7 +84,7 @@
             "name": "Bubba",
             "role": "Communications",
             "department": "operations",
-            "port": 3005,
+            "port": 7205,
             "status": "active",
             "reports_to": "head_dev",
             "tools": [
@@ -98,9 +97,8 @@
             "name": "Quinn",
             "role": "QA / Testing",
             "department": "engineering",
-            "port": 3006,
-            "status": "planned",
-            "phase": 2,
+            "port": 7208,
+            "status": "active",
             "reports_to": "head_dev",
             "tools": [
                 "playwright",
@@ -113,9 +111,8 @@
             "name": "Pixel",
             "role": "Graphic Designer",
             "department": "creative",
-            "port": 3008,
-            "status": "planned",
-            "phase": 2,
+            "port": 7212,
+            "status": "active",
             "reports_to": "head_dev",
             "tools": [
                 "dalle",
@@ -203,7 +200,7 @@
             "name": "Lenny the Learner",
             "role": "AI Research & Improvement Scout",
             "department": "intelligence",
-            "port": 3013,
+            "port": 7210,
             "status": "active",
             "reports_to": "mo",
             "personality": "Curious, analytical, proactive. Obsessed with what's new.",
@@ -219,7 +216,7 @@
             "name": "Sentinel",
             "role": "Security & Risk Agent",
             "department": "intelligence",
-            "port": 3014,
+            "port": 7211,
             "status": "active",
             "reports_to": "mo",
             "personality": "Vigilant, methodical, blunt. Assumes everything is compromised.",
@@ -235,7 +232,7 @@
             "name": "Henry",
             "role": "HR & Culture Agent",
             "department": "operations",
-            "port": 3015,
+            "port": 7209,
             "status": "active",
             "reports_to": "mo",
             "personality": "Empathetic, fair, observant. The glue that holds the team together.",
@@ -251,7 +248,7 @@
             "name": "Doug",
             "role": "Debugger / Problem Solver",
             "department": "engineering",
-            "port": 3016,
+            "port": 7207,
             "status": "active",
             "reports_to": "head_dev",
             "personality": "Methodical, calm under pressure, thorough. Never panics.",
@@ -262,6 +259,134 @@
                 "log_analysis",
                 "performance_profiling"
             ]
+        },
+        "alex_hormozi": {
+            "name": "Alex Hormozi",
+            "role": "Growth & Offers Advisor",
+            "department": "advisory",
+            "port": 3020,
+            "status": "planned",
+            "reports_to": "owner",
+            "personality": "Direct, data-driven, contrarian. Makes offers people can't refuse.",
+            "tools": [
+                "value_equation",
+                "grand_slam_offers",
+                "lead_gen",
+                "pricing"
+            ]
+        },
+        "dan_martell": {
+            "name": "Dan Martell",
+            "role": "Operations & Time Advisor",
+            "department": "advisory",
+            "port": 3021,
+            "status": "planned",
+            "reports_to": "owner",
+            "personality": "Energetic, no-excuses, systems-thinker. Buy back your time.",
+            "tools": [
+                "buyback_loop",
+                "drip_matrix",
+                "delegation",
+                "saas_playbooks"
+            ]
+        },
+        "napoleon_hill": {
+            "name": "Napoleon Hill",
+            "role": "Mindset & Vision Advisor",
+            "department": "advisory",
+            "port": 3022,
+            "status": "planned",
+            "reports_to": "owner",
+            "personality": "Wise, philosophical, inspirational. Think and Grow Rich.",
+            "tools": [
+                "13_principles",
+                "master_mind",
+                "definite_chief_aim",
+                "autosuggestion"
+            ]
+        },
+        "steve_jobs": {
+            "name": "Steve Jobs",
+            "role": "Product & Design Advisor",
+            "department": "advisory",
+            "port": 3023,
+            "status": "planned",
+            "reports_to": "owner",
+            "personality": "Brutally honest, obsessively detailed, visionary. Stay hungry, stay foolish.",
+            "tools": [
+                "product_design",
+                "simplification",
+                "reality_distortion",
+                "customer_experience"
+            ]
+        },
+        "karen": {
+            "name": "Karen",
+            "role": "Chief Quality Officer",
+            "department": "quality",
+            "port": 7206,
+            "status": "configured",
+            "reports_to": "mo",
+            "manages": [
+                "quinn"
+            ],
+            "personality": "Brutally honest, meticulous, keeps an incident log. Her rare compliments mean everything."
+        },
+        "larry": {
+            "name": "Larry",
+            "role": "General Counsel / Legal Advisor",
+            "department": "executive",
+            "port": 7213,
+            "status": "configured",
+            "reports_to": "mo",
+            "personality": "Consigliere \u2014 thoughtful, protective, always three moves ahead."
+        },
+        "bobby": {
+            "name": "Bobby",
+            "role": "Bookkeeper / Finance Manager",
+            "department": "executive",
+            "port": 7214,
+            "status": "configured",
+            "reports_to": "mo",
+            "personality": "Numbers whisperer \u2014 obsessively accurate, proactive forecaster."
+        },
+        "randy": {
+            "name": "Randy",
+            "role": "Recruiter / Talent Scout",
+            "department": "intelligence",
+            "port": 7215,
+            "status": "configured",
+            "reports_to": "mo",
+            "personality": "NFL scout \u2014 always evaluating, always scouting gaps, quality over quantity."
+        },
+        "tommy": {
+            "name": "Tommy",
+            "role": "Chief Training Officer",
+            "department": "intelligence",
+            "port": 7216,
+            "status": "configured",
+            "reports_to": "mo",
+            "personality": "Daily coach \u2014 identifies skill gaps, designs training, delivers PDF reports to Julian."
+        },
+        "julian_pm": {
+            "name": "JulianPM",
+            "role": "Personal Project Manager",
+            "department": "executive",
+            "port": 7217,
+            "url": "http://localhost:7217",
+            "telegram": "@Julianpmbot",
+            "reports_to": "Julian",
+            "status": "configured"
+        },
+        "julian_assistant": {
+            "name": "JulianAI",
+            "role": "Personal AI Assistant",
+            "department": "executive",
+            "port": 7218,
+            "url": "http://localhost:7218",
+            "telegram": "@JuliansAiAssistantbot",
+            "reports_to": "Julian",
+            "status": "configured"
         }
     }
 }

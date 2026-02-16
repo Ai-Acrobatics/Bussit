@@ -1,8 +1,15 @@
+require('dotenv').config({ path: __dirname + '/.env' });
+if (!process.env.PORT) {
+  console.error('FATAL: PORT not set. Check .env file.');
+  process.exit(1);
+}
+const PORT = parseInt(process.env.PORT, 10);
+
+const crypto = require('crypto');
 const express = require('express');
 const helmet = require('helmet');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const { createJob } = require('./tools/create-job');
 const { initCrons } = require('/home/dev/ai-acrobatics-fleet/fleet_shared/tools/cron-manager');
@@ -19,17 +26,20 @@ const { logMessageToSupabase } = supabaseLogger;
 // ─── Load agent config and build filtered tool set ───
 let agentToolDefs = toolDefinitions;
 let agentToolExecs = toolExecutors;
+let agentDisplayName = 'Agent';
+let agentRole = '';
 try {
   const configPath = path.join(__dirname, '..', 'config.agentic.json');
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   const capabilities = config.capabilities || [];
-  const agentName = config.identity?.name || 'unknown';
+  agentDisplayName = config.identity?.name || 'Agent';
+  agentRole = config.identity?.role || '';
   const { definitions, executors } = getToolsForAgent(capabilities, toolDefinitions, toolExecutors);
   agentToolDefs = definitions;
   agentToolExecs = executors;
-  console.log(`🔧 ${agentName}: loaded ${definitions.length} tools (filtered from ${toolDefinitions.length} by ${capabilities.length} capabilities)`);
+  console.log(`${agentDisplayName}: loaded ${definitions.length} tools (filtered from ${toolDefinitions.length} by ${capabilities.length} capabilities)`);
 } catch (err) {
-  console.warn('⚠️  Could not load agent config for tool filtering, using all tools:', err.message);
+  console.warn('Could not load agent config for tool filtering, using all tools:', err.message);
 }
 const { githubApi, getJobStatus } = require('./tools/github');
 const { getApiKey } = require('/home/dev/ai-acrobatics-fleet/fleet_shared/chat');
@@ -144,30 +154,26 @@ app.post('/telegram/webhook', async (req, res) => {
 
 
     // LOGGING: Index incoming message to Supabase
+    // Mark as read=true so relay polling (which queries read=false) doesn't also process it
     const receiver = message.chat.type === 'private' ? botUsername : (message.chat.title || message.chat.id.toString());
     const sender = message.from.username || message.from.first_name || 'unknown';
 
     if (message.text) {
-      logMessageToSupabase(sender, receiver, message.text, 'text').catch(err => console.error('Log Error:', err));
+      logMessageToSupabase(sender, receiver, message.text, 'text', { read: true }).catch(err => console.error('Log Error:', err));
     } else if (message.photo) {
-      // Handle Photos
-      const fileId = message.photo[message.photo.length - 1].file_id; // Best quality
-      logMessageToSupabase(sender, receiver, `[Photo] FileID: ${fileId}`, 'image').catch(err => console.error('Log Error:', err));
+      const fileId = message.photo[message.photo.length - 1].file_id;
+      logMessageToSupabase(sender, receiver, `[Photo] FileID: ${fileId}`, 'image', { read: true }).catch(err => console.error('Log Error:', err));
     } else if (message.document) {
-      // Handle Documents
       const fileName = message.document.file_name || 'document';
-      logMessageToSupabase(sender, receiver, `[Document] ${fileName} (${message.document.mime_type})`, 'file').catch(err => console.error('Log Error:', err));
+      logMessageToSupabase(sender, receiver, `[Document] ${fileName} (${message.document.mime_type})`, 'file', { read: true }).catch(err => console.error('Log Error:', err));
     } else if (message.voice) {
-      logMessageToSupabase(sender, receiver, '[Voice Message]', 'voice').catch(err => console.error('Log Error:', err));
+      logMessageToSupabase(sender, receiver, '[Voice Message]', 'voice', { read: true }).catch(err => console.error('Log Error:', err));
     }
 
 
     console.log(`[Telegram] From: ${sender} Text: ${message.text || '[Non-text]'}`);
 
-    // In groups: only respond if allowed
-    if (allowedGroupIds.length > 0 && !allowedGroupIds.includes(chatId)) {
-      return res.status(200).json({ ok: true });
-    }
+    // Bots respond in any group they're a member of (Telegram only sends webhooks for groups the bot is in)
 
     // Skip service messages
     if (!message.text && !message.voice) {
@@ -176,17 +182,19 @@ app.post('/telegram/webhook', async (req, res) => {
 
     const isFromBot = message.from && message.from.is_bot;
     const text = (message.text || '').toLowerCase();
+    const isDM = message.chat.type === 'private';
 
-    // Check if mentioned
+    // Check if mentioned (only matters in groups)
     const isMentioned = botUsername && text.includes(`@${botUsername.toLowerCase()}`);
     const isAll = text.includes('@all') || text.includes('@everyone');
     const isDepartment = botDepartment && text.includes(`@${botDepartment.toLowerCase()}`);
-    const isMo = botUsername && botUsername.toLowerCase().includes('mo');
+    const isMo = botUsername && /^mo[_-]|_mo_|_mo$/i.test(botUsername);
 
+    // In DMs: always respond. In groups: need mention, @all, or be Mo
     if (isFromBot) {
       if (!isMentioned && !isAll && !isDepartment) return res.status(200).json({ ok: true });
-    } else {
-      // Mo responds to owner (DM or group dispatch). Others need tag.
+    } else if (!isDM) {
+      // Group message from human — need mention or Mo
       if (!isMo && !isMentioned && !isAll && !isDepartment) return res.status(200).json({ ok: true });
     }
 
@@ -242,12 +250,33 @@ app.post('/telegram/webhook', async (req, res) => {
     if (message.text) {
       const stopTyping = startTypingIndicator(telegramBotToken, chatId);
       try {
+        // Smart model routing for webhook messages
+        const isOwnerMsg = TELEGRAM_CHAT_ID && String(message.chat.id) === TELEGRAM_CHAT_ID;
+        const isGroupMsg = message.chat.type === 'group' || message.chat.type === 'supergroup';
+        const textLower = (message.text || '').toLowerCase();
+        const needsDeep = /\b(analyze|review|debug|investigate|plan|architect|design|estimate|audit|assess|create task|assign|delegate|build|implement|deploy|fix|diagnose)\b/i.test(textLower);
+
+        let webhookModel, webhookProvider;
+        if (isOwnerMsg && needsDeep) {
+          // Premium path: owner DMs needing deep reasoning
+          webhookModel = process.env.EVENT_HANDLER_MODEL;
+          webhookProvider = process.env.LLM_PROVIDER;
+          console.log(`[Webhook] 🧠 Premium model: ${webhookModel}`);
+        } else {
+          // Economy path: group chat, simple DMs, bot mentions
+          webhookModel = process.env.CHAT_MODEL || process.env.EVENT_HANDLER_MODEL;
+          webhookProvider = process.env.CHAT_PROVIDER || process.env.LLM_PROVIDER;
+          console.log(`[Webhook] 💬 Chat model: ${webhookModel}`);
+        }
+
         const history = await getHistory(chatId);
         const { response, history: newHistory } = await chat(
-          message.text, // Use raw text or processed? Using raw for now to avoid regex bugs
+          message.text,
           history,
           agentToolDefs,
-          agentToolExecs
+          agentToolExecs,
+          webhookModel,
+          webhookProvider
         );
         updateHistory(chatId, newHistory);
         await sendMessage(telegramBotToken, chatId, response);
@@ -308,8 +337,13 @@ async function summarizeJob(results) {
 
 app.post('/github/webhook', async (req, res) => {
   if (GH_WEBHOOK_SECRET) {
-    const headerSecret = req.headers['x-github-webhook-secret-token'];
-    if (headerSecret !== GH_WEBHOOK_SECRET) return res.status(401).json({ error: 'Unauthorized' });
+    const signature = req.headers['x-hub-signature-256'];
+    if (!signature) return res.status(401).json({ error: 'Missing signature' });
+    const expected = 'sha256=' + crypto.createHmac('sha256', GH_WEBHOOK_SECRET)
+      .update(JSON.stringify(req.body)).digest('hex');
+    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
   }
 
   const event = req.headers['x-github-event'];
@@ -333,9 +367,9 @@ app.post('/github/webhook', async (req, res) => {
     results.pr_url = pr.html_url;
     const message = await summarizeJob(results);
     await sendMessage(telegramBotToken, TELEGRAM_CHAT_ID, message);
-    const history = getHistory(TELEGRAM_CHAT_ID);
+    const history = await getHistory(TELEGRAM_CHAT_ID);
     history.push({ role: 'assistant', content: message });
-    updateHistory(TELEGRAM_CHAT_ID, history);
+    await updateHistory(TELEGRAM_CHAT_ID, history);
     res.status(200).json({ ok: true, notified: true });
   } catch (err) {
     console.error('Failed to process GitHub webhook:', err);
@@ -345,6 +379,7 @@ app.post('/github/webhook', async (req, res) => {
 
 app.use((err, req, res, next) => {
   console.error(err);
+  if (res.headersSent) return next(err);
   res.status(500).json({ error: 'Internal server error' });
 });
 
@@ -354,124 +389,140 @@ const POLL_INTERVAL = 3000;
 const myName = process.env.BOT_USERNAME || 'unknown_bot';
 const myGroups = (process.env.TELEGRAM_GROUP_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+let pollTimeout = null;
+const server = app.listen(PORT, () => {
   console.log(`Listening on port ${PORT}`);
   if (process.env.SUPABASE_URL) {
     console.log(`[Relay] Starting Poller for ${myName}`);
-    setInterval(() => {
-      pollMessages(myName, myGroups, async (msg) => {
-        const sender = msg.sender;
-        const text = msg.message;
-        const receiver = msg.receiver;
-        console.log(`[Relay] Processing msg from ${sender}: ${text}`);
-        if (sender === myName) return;
+    function schedulePoll() {
+      pollTimeout = setTimeout(async () => {
+        try {
+          await pollMessages(myName, myGroups, async (msg) => {
+            const sender = msg.sender;
+            const text = msg.message;
+            const receiver = msg.receiver;
+            console.log(`[Relay] Processing msg from ${sender}: ${text}`);
+            if (sender === myName) return;
 
-        // --- Cron/Internal messages: never forward to Telegram ---
-        const isSystemMessage = sender === 'sys_cron' ||
-          /heartbeat|SYSTEM_ONLINE/i.test(text);
+            // --- Cron/Internal messages: never forward to Telegram ---
+            const isSystemMessage = sender === 'sys_cron' ||
+              /heartbeat|SYSTEM_ONLINE/i.test(text);
 
-        if (isSystemMessage) {
-          console.log(`[Relay] 🔇 Internal message from ${sender} — processing silently`);
-          // Process sys_cron agent tasks without Telegram spam
-          if (sender === 'sys_cron' && text.startsWith('REQUEST:')) {
+            if (isSystemMessage) {
+              console.log(`[Relay] Internal message from ${sender} — processing silently`);
+              // Process sys_cron agent tasks without Telegram spam
+              if (sender === 'sys_cron' && text.startsWith('REQUEST:')) {
+                try {
+                  const contextText = `[Internal cron task]: ${text}`;
+                  const chatId = `cron_${myName}`;
+                  const useModel = process.env.CHAT_MODEL || process.env.EVENT_HANDLER_MODEL;
+                  const useProvider = process.env.CHAT_PROVIDER || process.env.LLM_PROVIDER;
+                  const history = await getHistory(chatId);
+                  const { response, history: newHistory } = await chat(
+                    contextText, history, agentToolDefs, agentToolExecs, useModel, useProvider
+                  );
+                  updateHistory(chatId, newHistory);
+
+                  // Always log to Supabase so reports are visible in Dashboard Daddy
+                  await supabaseLogger.logMessageToSupabase(myName, 'cron_output', response, 'text');
+                  console.log(`[Relay] Cron task done: ${response.substring(0, 80)}...`);
+
+                  // Cron reports stay in Supabase/Dashboard Daddy only — no Telegram spam
+                  console.log(`[Relay] Cron report logged to Supabase (${response.length} chars) — not forwarding to Telegram`);
+                } catch (cronErr) {
+                  console.error(`[Relay] Cron task failed:`, cronErr.message);
+                }
+              }
+              return; // Heartbeat broadcasts never reach Telegram
+            }
+
+            // --- Agent-to-Agent Communication Rules ---
+            // Agents only communicate for: task assignments, important updates, handoffs
+            // Agents do NOT have back-and-forth conversations with each other
+            const ownerNames = ['owner', 'julian', 'julianb233', 'julianb', 'Julian Bradley'];
+            const isFromOwner = ownerNames.some(n => sender.toLowerCase() === n.toLowerCase());
+            const isFromAgent = !isFromOwner && (sender.endsWith('_bot') || sender.includes('Bot'));
+
+            // Mo CEO: forward important agent messages to owner's Telegram
+            if (/^mo[_-]|_mo_|_mo$/i.test(myName) && receiver === myName) {
+              if (telegramBotToken && TELEGRAM_CHAT_ID) {
+                await sendMessage(telegramBotToken, TELEGRAM_CHAT_ID, `[${agentDisplayName}] ${sender}: ${text}`);
+              }
+              return;
+            }
+
+            // Agent-to-agent: silently drop — prevents conversation loops
+            // Agents use send_agent_message tool to intentionally delegate tasks
+            // Replies to those messages are suppressed to avoid back-and-forth
+            if (isFromAgent) {
+              console.log(`[Relay] Received from agent ${sender} — dropped (loop prevention)`);
+              return;
+            }
+
+            const contextText = `[Message from ${sender}]: ${text}`;
+            const chatId = (receiver === myName || receiver === 'all') ? `dm_${sender}` : receiver;
+
+            // Smart model routing: use cheap CHAT_MODEL for simple fleet chat,
+            // escalate to premium EVENT_HANDLER_MODEL for complex reasoning/tasks
+            const needsReasoning = /\b(analyze|review|debug|investigate|plan|architect|design|estimate|audit|assess|create task|assign|delegate|build|implement|deploy|fix|diagnose)\b/i.test(text);
+            const needsTools = /\b(search|look up|check|run|execute|find|list|scan|fetch)\b/i.test(text);
+
+            let useModel, useProvider;
+            if (isFromOwner || needsReasoning || needsTools) {
+              // Premium path: owner messages or complex tasks
+              useModel = process.env.EVENT_HANDLER_MODEL;
+              useProvider = process.env.LLM_PROVIDER;
+              console.log(`[Relay] Premium model: ${useModel} (reason: ${isFromOwner ? 'owner' : needsReasoning ? 'reasoning' : 'tools'})`);
+            } else {
+              // Economy path: simple fleet chat
+              useModel = process.env.CHAT_MODEL || process.env.EVENT_HANDLER_MODEL;
+              useProvider = process.env.CHAT_PROVIDER || process.env.LLM_PROVIDER;
+              console.log(`[Relay] Chat model: ${useModel}`);
+            }
+
             try {
-              const contextText = `[Internal cron task]: ${text}`;
-              const chatId = `cron_${myName}`;
-              const useModel = process.env.CHAT_MODEL || process.env.EVENT_HANDLER_MODEL;
-              const useProvider = process.env.CHAT_PROVIDER || process.env.LLM_PROVIDER;
               const history = await getHistory(chatId);
               const { response, history: newHistory } = await chat(
-                contextText, history, agentToolDefs, agentToolExecs, useModel, useProvider
+                contextText,
+                history,
+                agentToolDefs,
+                agentToolExecs,
+                useModel,
+                useProvider
               );
               updateHistory(chatId, newHistory);
 
-              // Always log to Supabase so reports are visible in Dashboard Daddy
-              await supabaseLogger.logMessageToSupabase(myName, 'cron_output', response, 'text');
-              console.log(`[Relay] ✅ Cron task done: ${response.substring(0, 80)}...`);
-
-              // Forward SUBSTANTIVE outputs to Telegram (reports, analyses, alerts)
-              // Skip short acks like "Done", "SYSTEM_ONLINE", heartbeat confirmations
-              const isSubstantive = response.length > 200 &&
-                /report|analysis|summary|alert|warning|findings|update|insight|recommend/i.test(response);
-              if (isSubstantive && telegramBotToken && TELEGRAM_CHAT_ID) {
-                const label = `📊 [${myName} cron report]\n${response}`;
-                await sendMessage(telegramBotToken, TELEGRAM_CHAT_ID, label);
-                console.log(`[Relay] 📊 Forwarded cron report to Telegram (${response.length} chars)`);
+              if (receiver !== myName && receiver !== 'all') {
+                await sendMessage(telegramBotToken, receiver, response);
+              } else {
+                await supabaseLogger.logMessageToSupabase(myName, sender, response, 'text');
+                console.log(`[Relay] Replied to ${sender} via DB`);
               }
-            } catch (cronErr) {
-              console.error(`[Relay] Cron task failed:`, cronErr.message);
+            } catch (err) {
+              console.error('[Relay] Processing Error:', err);
             }
-          }
-          return; // Heartbeat broadcasts never reach Telegram
-        }
-
-        // --- Agent-to-Agent Communication Rules ---
-        // Agents only communicate for: task assignments, important updates, handoffs
-        // Agents do NOT have back-and-forth conversations with each other
-        const isFromOwner = sender === 'owner' || sender === 'julian';
-        const isFromAgent = !isFromOwner; // Everything not from owner is agent-to-agent
-
-        // Mo CEO: forward important agent messages to owner's Telegram
-        if (myName.toLowerCase().includes('mo') && receiver === myName) {
-          if (telegramBotToken && TELEGRAM_CHAT_ID) {
-            await sendMessage(telegramBotToken, TELEGRAM_CHAT_ID, `[${sender}]: ${text}`);
-          }
-          return;
-        }
-
-        // Agent-to-agent: silently drop — prevents conversation loops
-        // Agents use send_agent_message tool to intentionally delegate tasks
-        // Replies to those messages are suppressed to avoid back-and-forth
-        if (isFromAgent) {
-          console.log(`[Relay] 📨 Received from agent ${sender} — dropped (loop prevention)`);
-          return;
-        }
-
-        const contextText = `[Message from ${sender}]: ${text}`;
-        const chatId = (receiver === myName || receiver === 'all') ? `dm_${sender}` : receiver;
-
-        // Smart model routing: use cheap CHAT_MODEL for simple fleet chat,
-        // escalate to premium EVENT_HANDLER_MODEL for complex reasoning/tasks
-        const needsReasoning = /\b(analyze|review|debug|investigate|plan|architect|design|estimate|audit|assess|create task|assign|delegate|build|implement|deploy|fix|diagnose)\b/i.test(text);
-        const needsTools = /\b(search|look up|check|run|execute|find|list|scan|fetch)\b/i.test(text);
-
-        let useModel, useProvider;
-        if (isFromOwner || needsReasoning || needsTools) {
-          // Premium path: owner messages or complex tasks
-          useModel = process.env.EVENT_HANDLER_MODEL;
-          useProvider = process.env.LLM_PROVIDER;
-          console.log(`[Relay] 🧠 Premium model: ${useModel} (reason: ${isFromOwner ? 'owner' : needsReasoning ? 'reasoning' : 'tools'})`);
-        } else {
-          // Economy path: simple fleet chat
-          useModel = process.env.CHAT_MODEL || process.env.EVENT_HANDLER_MODEL;
-          useProvider = process.env.CHAT_PROVIDER || process.env.LLM_PROVIDER;
-          console.log(`[Relay] 💬 Chat model: ${useModel}`);
-        }
-
-        try {
-          const history = await getHistory(chatId);
-          const { response, history: newHistory } = await chat(
-            contextText,
-            history,
-            agentToolDefs,
-            agentToolExecs,
-            useModel,
-            useProvider
-          );
-          updateHistory(chatId, newHistory);
-
-          if (receiver !== myName && receiver !== 'all') {
-            await sendMessage(telegramBotToken, receiver, response);
-          } else {
-            await supabaseLogger.logMessageToSupabase(myName, sender, response, 'text');
-            console.log(`[Relay] Replied to ${sender} via DB`);
-          }
+          });
         } catch (err) {
-          console.error('[Relay] Processing Error:', err);
+          console.error('[Relay] Poll cycle error:', err.message);
         }
-      });
-    }, POLL_INTERVAL);
+        schedulePoll();
+      }, POLL_INTERVAL);
+    }
+    schedulePoll();
   }
   initCrons(__dirname, process.env.BOT_USERNAME || 'unknown_agent');
 });
+
+// Graceful shutdown
+function shutdown() {
+  console.log('[Shutdown] Received signal, shutting down...');
+  if (pollTimeout) clearTimeout(pollTimeout);
+  server.close(() => {
+    console.log('[Shutdown] Server closed.');
+    process.exit(0);
+  });
+  // Force exit after 10 seconds if server.close hangs
+  setTimeout(() => process.exit(1), 10000).unref();
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
