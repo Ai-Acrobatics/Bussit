@@ -22,6 +22,7 @@ const { getToolsForAgent } = require('/home/dev/ai-acrobatics-fleet/fleet_shared
 const { getHistory, updateHistory } = require('/home/dev/ai-acrobatics-fleet/fleet_shared/chat/conversation');
 const supabaseLogger = require('/home/dev/ai-acrobatics-fleet/fleet_shared/tools/supabase-logger');
 const { logMessageToSupabase } = supabaseLogger;
+const { checkPort } = require('/home/dev/ai-acrobatics-fleet/fleet_shared/tools/port-check');
 
 // ─── Load agent config and build filtered tool set ───
 let agentToolDefs = toolDefinitions;
@@ -390,6 +391,8 @@ const myName = process.env.BOT_USERNAME || 'unknown_bot';
 const myGroups = (process.env.TELEGRAM_GROUP_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
 
 let pollTimeout = null;
+// Check port availability before starting (prevents EADDRINUSE crash loops)
+checkPort(PORT).then(() => {
 const server = app.listen(PORT, () => {
   console.log(`Listening on port ${PORT}`);
   if (process.env.SUPABASE_URL) {
@@ -526,3 +529,4 @@ function shutdown() {
 }
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
+}); // end checkPort().then()
